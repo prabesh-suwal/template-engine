@@ -1,0 +1,621 @@
+import { BuiltInFormatters } from '../formatters';
+import { 
+  ParsedTemplate, 
+  ProcessedData, 
+  GenerationResult, 
+  ExtractedFiles,
+  TemplateOptions,
+  ImageData,
+  ChartData,
+  TemplateTag
+} from '../types/index';
+import { XMLUtils } from '../utils/xml';
+import { ZipUtils } from '../utils/zip';
+
+export class DocumentGenerator {
+  /**
+   * Generate final document from template and processed data
+   */
+  async generateDocument(
+    parsedTemplate: ParsedTemplate,
+    processedData: ProcessedData,
+    options: TemplateOptions = {}
+  ): Promise<GenerationResult> {
+    const startTime = Date.now();
+    const warnings: string[] = [];
+
+    try {
+      // Clone the original files to avoid modifying the template
+      const modifiedFiles = await this.prepareModifiedFiles(parsedTemplate);
+
+      // Process each template tag
+      await this.processTemplateTags(
+        parsedTemplate,
+        processedData,
+        modifiedFiles,
+        warnings
+      );
+
+      // Add media files (images, charts)
+      await this.addMediaFiles(
+        processedData,
+        modifiedFiles,
+        parsedTemplate
+      );
+
+      // Update relationships and content types
+      await this.updateDocumentStructure(
+        modifiedFiles,
+        processedData,
+        parsedTemplate
+      );
+
+      // Generate final DOCX
+      const finalBuffer = await ZipUtils.createDocx(modifiedFiles);
+
+      const processingTime = Date.now() - startTime;
+
+      return {
+        buffer: finalBuffer,
+        metadata: {
+          templateTags: parsedTemplate.templateTags.length,
+          processingTime,
+          outputFormat: options.convertTo || 'docx',
+          warnings: warnings.length > 0 ? warnings : undefined
+        }
+      };
+
+    } catch (error) {
+      throw new Error(`Document generation failed: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  /**
+   * Prepare modified files from template
+   */
+  private async prepareModifiedFiles(parsedTemplate: ParsedTemplate): Promise<ExtractedFiles> {
+    const modifiedFiles: ExtractedFiles = {};
+
+    // Convert XML files back to strings and prepare for modification
+    for (const [fileName, xmlDoc] of parsedTemplate.xmlFiles) {
+      modifiedFiles[fileName] = Buffer.from(xmlDoc.xml, 'utf8');
+    }
+
+    // Copy media files
+    for (const [fileName, buffer] of parsedTemplate.mediaFiles) {
+      modifiedFiles[fileName] = Buffer.from(buffer);
+    }
+
+    return modifiedFiles;
+  }
+
+  /**
+   * Process all template tags in the document
+   */
+  private async processTemplateTags(
+    parsedTemplate: ParsedTemplate,
+    processedData: ProcessedData,
+    modifiedFiles: ExtractedFiles,
+    warnings: string[]
+  ): Promise<void> {
+    // Group tags by file for efficient processing
+    const tagsByFile = new Map<string, typeof parsedTemplate.templateTags>();
+    
+    for (const tag of parsedTemplate.templateTags) {
+      const fileName = tag.position.parentElement;
+      if (!tagsByFile.has(fileName)) {
+        tagsByFile.set(fileName, []);
+      }
+      tagsByFile.get(fileName)!.push(tag);
+    }
+
+    // Process each file
+    for (const [fileName, tags] of tagsByFile) {
+      try {
+        await this.processFileTemplateTags(fileName, tags, processedData, modifiedFiles);
+      } catch (error) {
+        warnings.push(`Error processing ${fileName}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+  }
+
+  /**
+   * Process template tags in a specific file
+   */
+  private async processFileTemplateTags(
+    fileName: string,
+    tags: TemplateTag[],
+    processedData: ProcessedData,
+    modifiedFiles: ExtractedFiles
+  ): Promise<void> {
+    let xmlContent = ZipUtils.getFileAsString(modifiedFiles, fileName);
+
+    // Sort tags by position (last to first to avoid index shifting)
+    const sortedTags = [...tags].sort((a, b) => 
+      b.position.startIndex - a.position.startIndex
+    );
+
+    for (const tag of sortedTags) {
+      try {
+        const replacement = await this.generateTagReplacement(tag, processedData);
+        
+        // Replace the tag in the XML content
+        xmlContent = this.replaceTagInXML(xmlContent, tag, replacement);
+        
+      } catch (error) {
+        console.error(`Error processing tag ${tag.fullTag}:`, error);
+        // Replace with error message to avoid corrupting document
+        const errorMsg = `[Error: ${error instanceof Error ? error.message : 'Unknown error'}]`;
+        xmlContent = xmlContent.replace(tag.fullTag, errorMsg);
+      }
+    }
+
+    // Update the file
+    ZipUtils.setFileFromString(modifiedFiles, fileName, xmlContent);
+  }
+
+  /**
+   * Generate replacement content for a template tag
+   */
+  private async generateTagReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): Promise<string> {
+    switch (tag.type) {
+      case 'simple':
+        return this.generateSimpleReplacement(tag, processedData);
+        
+      case 'table':
+        return this.generateTableReplacement(tag, processedData);
+        
+      case 'image':
+        return this.generateImageReplacement(tag, processedData);
+        
+      case 'chart':
+        return this.generateChartReplacement(tag, processedData);
+        
+      case 'html':
+        return this.generateHtmlReplacement(tag, processedData);
+        
+      default:
+        return this.generateSimpleReplacement(tag, processedData);
+    }
+  }
+
+  /**
+   * Generate replacement for simple text tags
+   */
+  private generateSimpleReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): string {
+    const data = processedData.values.get(tag.id);
+    if (!data) {
+      return '';
+    }
+
+    // If formatting is applied, we need to wrap in proper Word XML
+    if (data.formatting) {
+      return this.wrapInWordFormatting(String(data.value), data.formatting, tag.formattingContext);
+    }
+
+    return String(data.value || '');
+  }
+
+  /**
+   * Generate replacement for table tags
+   */
+  private generateTableReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): string {
+    // Check if this is a table iteration tag
+    if (tag.path.includes('[i]')) {
+      const tableData = processedData.dynamicTables.get(tag.id);
+      if (!tableData || tableData.length === 0) {
+        return '';
+      }
+
+      // Generate rows for table iteration
+      const rows = tableData[0].rows;
+      let output = '';
+
+      // Extract the property name from the path (e.g., "description" from "items[i].description")
+      const propertyMatch = tag.path.match(/\[i\]\.(.+)$/);
+      const propertyName = propertyMatch ? propertyMatch[1] : '';
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        let value = row;
+        
+        if (propertyName) {
+          // Navigate to the specific property
+          const propertyParts = propertyName.split('.');
+          for (const part of propertyParts) {
+            value = value && value[part];
+          }
+        }
+
+        // Apply formatters if any
+        const formattedResult = BuiltInFormatters.applyFormatters(value, tag.formatters, tag.formattingContext);
+        
+        // For table cells, we don't want line breaks between rows in the same cell
+        // Instead, we should replace the entire table row template
+        if (i === 0) {
+          output = String(formattedResult.value || '');
+        } else {
+          // For subsequent items, we need to create new table rows
+          // This is a limitation - Word tables need proper XML structure
+          output = String(formattedResult.value || ''); // Just use the first item for now
+        }
+      }
+
+      return output;
+    } else {
+      // Direct table/array access
+      const data = processedData.values.get(tag.id);
+      return data ? String(data.value || '') : '';
+    }
+  }
+
+  /**
+   * Generate replacement for image tags
+   */
+  private generateImageReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): string {
+    const imageData = processedData.images.get(tag.id);
+    if (!imageData) {
+      return '[Image not found]';
+    }
+
+    // Generate Word XML for image
+    return this.generateImageXML(imageData);
+  }
+
+  /**
+   * Generate replacement for chart tags
+   */
+  private generateChartReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): string {
+    const chartData = processedData.charts.get(tag.id);
+    if (!chartData) {
+      return '[Chart not found]';
+    }
+
+    // Charts are treated as images in Word
+    const imageData: ImageData = {
+      buffer: chartData.buffer,
+      extension: 'png',
+      relationshipId: chartData.relationshipId
+    };
+
+    return this.generateImageXML(imageData);
+  }
+
+  /**
+   * Generate replacement for HTML tags
+   */
+  private generateHtmlReplacement(
+    tag: TemplateTag,
+    processedData: ProcessedData
+  ): string {
+    const htmlContent = processedData.htmlContent.get(tag.id);
+    if (!htmlContent) {
+      return '';
+    }
+
+    // Convert HTML to Word XML (simplified)
+    return this.convertHtmlToWordXML(htmlContent);
+  }
+
+  /**
+   * Replace tag in XML content
+   */
+  private replaceTagInXML(
+    xmlContent: string,
+    tag: TemplateTag,
+    replacement: string
+  ): string {
+    // Simple replacement - a full implementation would need to handle XML structure
+    return xmlContent.replace(tag.fullTag, replacement);
+  }
+
+  /**
+   * Wrap text in Word formatting XML
+   */
+  private wrapInWordFormatting(
+    text: string,
+    formatting: any,
+    originalContext: any
+  ): string {
+    let runProps = '';
+
+    if (formatting.bold) {
+      runProps += '<w:b/>';
+    }
+    if (formatting.italic) {
+      runProps += '<w:i/>';
+    }
+    if (formatting.underline) {
+      runProps += '<w:u w:val="single"/>';
+    }
+    if (formatting.color) {
+      runProps += `<w:color w:val="${formatting.color}"/>`;
+    }
+    if (formatting.fontSize) {
+      runProps += `<w:sz w:val="${formatting.fontSize * 2}"/>`;
+    }
+    if (formatting.fontFamily) {
+      runProps += `<w:rFonts w:ascii="${formatting.fontFamily}"/>`;
+    }
+
+    if (runProps) {
+      return `<w:r><w:rPr>${runProps}</w:rPr><w:t>${this.escapeXML(text)}</w:t></w:r>`;
+    }
+
+    return this.escapeXML(text);
+  }
+
+  /**
+   * Generate Word XML for images
+   */
+  private generateImageXML(imageData: ImageData): string {
+    // This is a simplified image XML
+    // A full implementation would need proper Word drawing XML
+    const imageId = imageData.relationshipId;
+    const width = imageData.width || 200;
+    const height = imageData.height || 150;
+
+    return `
+      <w:r>
+        <w:drawing>
+          <wp:inline>
+            <wp:extent cx="${width * 9525}" cy="${height * 9525}"/>
+            <wp:docPr id="1" name="Picture"/>
+            <a:graphic>
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic>
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="1" name="Picture"/>
+                    <pic:cNvPicPr/>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="${imageId}"/>
+                    <a:stretch>
+                      <a:fillRect/>
+                    </a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr>
+                    <a:xfrm>
+                      <a:off x="0" y="0"/>
+                      <a:ext cx="${width * 9525}" cy="${height * 9525}"/>
+                    </a:xfrm>
+                    <a:prstGeom prst="rect"/>
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    `;
+  }
+
+  /**
+   * Convert HTML to Word XML (simplified)
+   */
+  private convertHtmlToWordXML(html: string): string {
+    // This is a very basic conversion
+    // A full implementation would use a proper HTML to WordML converter
+    
+    // Remove HTML tags and decode entities
+    let text = html.replace(/<[^>]*>/g, '');
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+
+    return this.escapeXML(text);
+  }
+
+  /**
+   * Add media files to the document
+   */
+  private async addMediaFiles(
+    processedData: ProcessedData,
+    modifiedFiles: ExtractedFiles,
+    parsedTemplate: ParsedTemplate
+  ): Promise<void> {
+    // Add images
+    for (const [tagId, imageData] of processedData.images) {
+      const fileName = ZipUtils.generateMediaFileName(modifiedFiles, imageData.extension);
+      const fullPath = ZipUtils.addMediaFile(modifiedFiles, fileName, imageData.buffer);
+      
+      // Update the relationship ID to point to the correct file
+      imageData.relationshipId = `rId${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
+    }
+
+    // Add charts (as images)
+    for (const [tagId, chartData] of processedData.charts) {
+      const fileName = ZipUtils.generateMediaFileName(modifiedFiles, 'png');
+      const fullPath = ZipUtils.addMediaFile(modifiedFiles, fileName, chartData.buffer);
+      
+      // Update the relationship ID
+      chartData.relationshipId = `rId${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
+    }
+  }
+
+  /**
+   * Update document structure (relationships, content types)
+   */
+  private async updateDocumentStructure(
+    modifiedFiles: ExtractedFiles,
+    processedData: ProcessedData,
+    parsedTemplate: ParsedTemplate
+  ): Promise<void> {
+    try {
+      // Update relationships
+      await this.updateRelationships(modifiedFiles, processedData);
+      
+      // Update content types
+      await this.updateContentTypes(modifiedFiles, processedData);
+      
+    } catch (error) {
+      console.warn('Failed to update document structure:', error);
+    }
+  }
+
+  /**
+   * Update document relationships
+   */
+  private async updateRelationships(
+    modifiedFiles: ExtractedFiles,
+    processedData: ProcessedData
+  ): Promise<void> {
+    if (!ZipUtils.fileExists(modifiedFiles, 'word/_rels/document.xml.rels')) {
+      return;
+    }
+
+    let relsXml = ZipUtils.getFileAsString(modifiedFiles, 'word/_rels/document.xml.rels');
+    
+    const chartImages: [string, ImageData][] = Array.from(processedData.charts.entries()).map(
+  ([key, chart]) => [
+    key,
+    {
+      buffer: chart.buffer,
+      extension: 'png',
+      width: 300, // or chart-specific value
+      height: 200,
+      relationshipId: chart.relationshipId
+    }
+  ]
+);
+
+const allMedia = new Map<string, ImageData>([
+  ...Array.from(processedData.images.entries()),
+  ...chartImages
+]);
+    
+    for (const [tagId, mediaData] of allMedia) {
+      const typedMediaData = mediaData as ImageData | ChartData;
+      const relationshipXml = `
+        <Relationship Id="${typedMediaData.relationshipId}" 
+                     Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" 
+                     Target="media/image${Date.now()}.${(typedMediaData as ImageData).extension || 'png'}"/>
+      `;
+      
+      // Insert before closing tag
+      relsXml = relsXml.replace('</Relationships>', relationshipXml + '</Relationships>');
+    }
+
+    ZipUtils.setFileFromString(modifiedFiles, 'word/_rels/document.xml.rels', relsXml);
+  }
+
+  /**
+   * Update content types
+   */
+  private async updateContentTypes(
+    modifiedFiles: ExtractedFiles,
+    processedData: ProcessedData
+  ): Promise<void> {
+    if (!ZipUtils.fileExists(modifiedFiles, '[Content_Types].xml')) {
+      return;
+    }
+
+    let contentTypesXml = ZipUtils.getFileAsString(modifiedFiles, '[Content_Types].xml');
+    
+    // Add content types for new media
+    const extensions = new Set<string>();
+    
+    for (const imageData of processedData.images.values()) {
+      extensions.add(imageData.extension);
+    }
+    
+    for (const chartData of processedData.charts.values()) {
+      extensions.add('png'); // Charts are saved as PNG
+    }
+
+    for (const extension of extensions) {
+      const mimeType = this.getMimeType(extension);
+      const defaultXml = `
+        <Default Extension="${extension}" ContentType="${mimeType}"/>
+      `;
+      
+      // Insert before closing tag
+      contentTypesXml = contentTypesXml.replace('</Types>', defaultXml + '</Types>');
+    }
+
+    ZipUtils.setFileFromString(modifiedFiles, '[Content_Types].xml', contentTypesXml);
+  }
+
+  /**
+   * Get MIME type for file extension
+   */
+  private getMimeType(extension: string): string {
+    const mimeTypes: { [key: string]: string } = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'bmp': 'image/bmp',
+      'webp': 'image/webp'
+    };
+
+    return mimeTypes[extension.toLowerCase()] || 'image/png';
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  private escapeXML(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Validate generated document
+   */
+  async validateGeneratedDocument(buffer: Buffer): Promise<{
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  }> {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    try {
+      // Try to extract and validate the generated DOCX
+      const extractedFiles = await ZipUtils.extractDocx(buffer);
+      const validation = ZipUtils.validateDocxStructure(extractedFiles);
+      
+      errors.push(...validation.errors);
+      
+      // Additional validation checks
+      if (ZipUtils.getTotalSize(extractedFiles) === 0) {
+        errors.push('Generated document is empty');
+      }
+
+      if (!ZipUtils.fileExists(extractedFiles, 'word/document.xml')) {
+        errors.push('Main document file is missing');
+      }
+
+    } catch (error) {
+      errors.push(`Document validation failed: ${error instanceof Error ? error.message : error}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "report": {
+    "title": "Q4 2024 Business Performance Report",
+    "type": "quarterly",
+    "period": {
+      "start": "2024-10-01",
+      "end": "2024-12-31",
+      "quarter": "Q4",
+      "year": 2024
+    },
+    "generatedDate": "2025-01-15T09:00:00.000Z",
+    "generatedBy": "Analytics Department",
+    "confidentiality": "Internal Use Only"
+  },
+  "company": {
+    "name": "Global Tech Solutions",
+    "logo": "https://via.placeholder.com/300x120/2c3e50/ffffff?text=GLOBAL+TECH",
+    "headquarters": "San Francisco, CA",
+    "employees": 1250,
+    "founded": 2018,
+    "ceo": "Alexandra Chen",
+    "website": "www.globaltech.com"
+  },
+  "financial": {
+    "revenue": {
+      "current": 45600000,
+      "previous": 38200000,
+      "growth": 0.194,
+      "target": 42000000,
+      "currency": "USD"
+    },
+    "profit": {
+      "gross": 28440000,
+      "net": 6840000,
+      "margin": 0.15,
+      "previous": 5730000,
+      "growth": 0.194
+    },
+    "quarterly": [
+      {
+        "quarter": "Q1 2024",
+        "revenue": 9200000,
+        "profit": 1380000,
+        "growth": 0.12
+      },
+      {
+        "quarter": "Q2 2024", 
+        "revenue": 10800000,
+        "profit": 1620000,
+        "growth": 0.18
+      },
+      {
+        "quarter": "Q3 2024",
+        "revenue": 11400000,
+        "profit": 1710000,
+        "growth": 0.16
+      },
+      {
+        "quarter": "Q4 2024",
+        "revenue": 14200000,
+        "profit": 2130000,
+        "growth": 0.24
+      }
+    ],
+    "expenses": {
+      "total": 38760000,
+      "breakdown": {
+        "salaries": 24000000,
+        "operations": 8760000,
+        "marketing": 3200000,
+        "research": 2800000
+      }
+    }
+  },
+  "departments": [
+    {
+      "name": "Engineering",
+      "headCount": 485,
+      "budget": 18500000,
+      "performance": 0.94,
+      "projects": 23,
+      "satisfaction": 4.6,
+      "head": "David Kumar"
+    }
+  ]
+}

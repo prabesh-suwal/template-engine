@@ -1,0 +1,163 @@
+{
+  "invoice": {
+    "number": "INV-2024-001",
+    "date": "2024-01-15T00:00:00.000Z",
+    "dueDate": "2024-02-15T00:00:00.000Z",
+    "poNumber": "PO-12345"
+  },
+  "company": {
+    "name": "TechCorp Solutions Inc.",
+    "logo": "https://via.placeholder.com/200x80/0066cc/ffffff?text=TECHCORP",
+    "address": {
+      "street": "123 Business Avenue",
+      "city": "Tech City",
+      "state": "CA",
+      "zip": "90210",
+      "country": "USA"
+    },
+    "contact": {
+      "email": "billing@techcorp.com",
+      "phone": "+1 (555) 123-4567",
+      "website": "www.techcorp.com"
+    },
+    "tax": {
+      "id": "TAX123456789",
+      "rate": 0.0875
+    }
+  },
+  "customer": {
+    "id": "CUST-001",
+    "name": "Acme Corporation Ltd.",
+    "contact": {
+      "person": "John Smith",
+      "title": "Procurement Manager",
+      "email": "john.smith@acme.com",
+      "phone": "+1 (555) 987-6543"
+    },
+    "address": {
+      "street": "456 Client Street",
+      "suite": "Suite 200", 
+      "city": "Business Town",
+      "state": "NY",
+      "zip": "10001",
+      "country": "USA"
+    },
+    "paymentTerms": "Net 30"
+  },
+  "items": [
+    {
+      "id": "SRV-001",
+      "description": "Web Application Development",
+      "details": "Full-stack development with React and Node.js",
+      "quantity": 80,
+      "unit": "hours",
+      "rate": 150.00,
+      "amount": 12000.00,
+      "category": "Development"
+    },
+    {
+      "id": "SRV-002", 
+      "description": "UI/UX Design Services",
+      "details": "User interface and experience design",
+      "quantity": 40,
+      "unit": "hours",
+      "rate": 120.00,
+      "amount": 4800.00,
+      "category": "Design"
+    },
+    {
+      "id": "SRV-003",
+      "description": "Project Management",
+      "details": "Agile project management and coordination",
+      "quantity": 20,
+      "unit": "hours", 
+      "rate": 100.00,
+      "amount": 2000.00,
+      "category": "Management"
+    },
+    {
+      "id": "SRV-004",
+      "description": "Quality Assurance Testing",
+      "details": "Comprehensive testing and bug fixes",
+      "quantity": 24,
+      "unit": "hours",
+      "rate": 90.00,
+      "amount": 2160.00,
+      "category": "Testing"
+    },
+    {
+      "id": "SRV-005",
+      "description": "Deployment & DevOps",
+      "details": "Cloud deployment and CI/CD setup",
+      "quantity": 16,
+      "unit": "hours",
+      "rate": 140.00,
+      "amount": 2240.00,
+      "category": "Infrastructure"
+    }
+  ],
+  "calculations": {
+    "subtotal": 23200.00,
+    "discountRate": 0.05,
+    "discountAmount": 1160.00,
+    "subtotalAfterDiscount": 22040.00,
+    "taxRate": 0.0875,
+    "taxAmount": 1928.50,
+    "total": 23968.50,
+    "itemCount": 5,
+    "totalHours": 180
+  },
+  "payment": {
+    "status": "pending",
+    "method": "bank_transfer",
+    "currency": "USD",
+    "terms": "Net 30 days",
+    "lateFee": 0.015,
+    "bankDetails": {
+      "name": "First National Bank",
+      "account": "****1234",
+      "routing": "****5678"
+    }
+  },
+  "project": {
+    "name": "E-commerce Platform Development",
+    "code": "PROJ-2024-001",
+    "manager": "Sarah Johnson",
+    "startDate": "2023-11-01",
+    "endDate": "2024-01-15",
+    "status": "completed",
+    "description": "Complete e-commerce solution with payment integration"
+  },
+  "notes": {
+    "public": "<p><strong>Payment Terms:</strong> Payment is due within 30 days of invoice date.</p><p><strong>Late Fees:</strong> 1.5% monthly charge on overdue amounts.</p><ul><li>All deliverables completed to specification</li><li>Source code and documentation provided</li><li>30-day warranty on all work</li><li>Free minor revisions within 14 days</li></ul>",
+    "internal": "Customer requested expedited delivery. Premium rate applied for weekend work.",
+    "terms": "<h3>Terms and Conditions</h3><p>This invoice is subject to our standard terms and conditions. Work performed is guaranteed for 30 days from completion date.</p>"
+  },
+  "metadata": {
+    "createdBy": "Sarah Johnson",
+    "createdDate": "2024-01-15T10:30:00.000Z",
+    "lastModified": "2024-01-15T14:45:00.000Z",
+    "version": "1.2",
+    "department": "Professional Services",
+    "approvedBy": "Mike Chen",
+    "approvalDate": "2024-01-15T16:00:00.000Z"
+  },
+  "performance": {
+    "chartData": {
+      "labels": ["Nov", "Dec", "Jan"],
+      "datasets": [{
+        "label": "Hours Worked",
+        "data": [45, 85, 50],
+        "backgroundColor": ["#FF6384", "#36A2EB", "#FFCE56"],
+        "borderColor": "#333",
+        "borderWidth": 1
+      }]
+    },
+    "summary": {
+      "onTime": true,
+      "onBudget": true,
+      "clientSatisfaction": 4.8,
+      "teamEfficiency": 0.92
+    }
+  }
+}
