@@ -5,6 +5,297 @@ import { FormatterFunction, Formatters, FormattingContext, RunProperties } from 
  */
 export class BuiltInFormatters {
   static formatters: Formatters = {
+
+    // Add these aggregation formatters to your existing BuiltInFormatters.formatters object:
+
+// Mathematical aggregation formatters
+sum: (value: any, fieldName?: string): string => {
+  if (!Array.isArray(value)) return String(value);
+  
+  let total = 0;
+  for (const item of value) {
+    let num: number;
+    
+    if (fieldName && typeof item === 'object' && item !== null) {
+      // Sum specific field: {data.items|sum('price')}
+      num = parseFloat(item[fieldName]) || 0;
+    } else {
+      // Sum array of numbers: {data.numbers|sum}
+      num = parseFloat(item) || 0;
+    }
+    
+    total += num;
+  }
+  
+  return total.toFixed(2);
+},
+
+average: (value: any, fieldName?: string): string => {
+  if (!Array.isArray(value) || value.length === 0) return '0.00';
+  
+  let total = 0;
+  let count = 0;
+  
+  for (const item of value) {
+    let num: number;
+    
+    if (fieldName && typeof item === 'object' && item !== null) {
+      num = parseFloat(item[fieldName]);
+    } else {
+      num = parseFloat(item);
+    }
+    
+    if (!isNaN(num)) {
+      total += num;
+      count++;
+    }
+  }
+  
+  return count > 0 ? (total / count).toFixed(2) : '0.00';
+},
+
+avg: (value: any, fieldName?: string): string => {
+  // Alias for average
+  return BuiltInFormatters.formatters.average(value, fieldName);
+},
+
+min: (value: any, fieldName?: string): string => {
+  if (!Array.isArray(value) || value.length === 0) return '';
+  
+  let minimum = Infinity;
+  
+  for (const item of value) {
+    let num: number;
+    
+    if (fieldName && typeof item === 'object' && item !== null) {
+      num = parseFloat(item[fieldName]);
+    } else {
+      num = parseFloat(item);
+    }
+    
+    if (!isNaN(num) && num < minimum) {
+      minimum = num;
+    }
+  }
+  
+  return minimum === Infinity ? '' : minimum.toString();
+},
+
+max: (value: any, fieldName?: string): string => {
+  console.log("MAX STARTED... {} and fieldName: {}", value, fieldName)
+  if (!Array.isArray(value) || value.length === 0) return '';
+  console.log("is array")
+  
+  let maximum = -Infinity;
+  
+  for (const item of value) {
+    let num: number;
+    console.log("item: {}",item)
+    if (fieldName && typeof item === 'object' && item !== null) {
+      console.log("======1 ===========")
+      num = item[fieldName];
+            console.log("====== 2 =========== {}", item[fieldName])
+
+    } else {
+      num = parseFloat(item);
+    }
+
+    console.log("num: {}", num)
+   
+    
+    if (!isNaN(num) && num > maximum) {
+      maximum = num;
+    }
+     console.log("maximum: {}", maximum)
+  }
+  
+  return maximum === -Infinity ? '' : maximum.toString();
+},
+
+count: (value: any, condition?: string): string => {
+  if (!Array.isArray(value)) return '0';
+  
+  if (!condition) {
+    // Simple count: {data.items|count}
+    return value.length.toString();
+  }
+  
+  // Conditional count: {data.items|count('status=active')}
+  const [field, expectedValue] = condition.split('=');
+  if (!field || expectedValue === undefined) {
+    return value.length.toString();
+  }
+  
+  let count = 0;
+  for (const item of value) {
+    if (typeof item === 'object' && item !== null) {
+      if (String(item[field.trim()]) === expectedValue.trim()) {
+        count++;
+      }
+    }
+  }
+  
+  return count.toString();
+},
+
+// Advanced aggregation formatters
+groupBy: (value: any, fieldName: string): string => {
+  if (!Array.isArray(value) || !fieldName) return String(value);
+  
+  const groups: { [key: string]: any[] } = {};
+  
+  for (const item of value) {
+    if (typeof item === 'object' && item !== null) {
+      const key = String(item[fieldName] || 'undefined');
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(item);
+    }
+  }
+  
+  // Return formatted groups
+  return Object.entries(groups)
+    .map(([key, items]) => `${key}: ${items.length} items`)
+    .join(', ');
+},
+
+sortBy: (value: any, fieldName: string, direction: string = 'asc'): any => {
+  if (!Array.isArray(value) || !fieldName) return value;
+  
+  const sorted = [...value].sort((a, b) => {
+    let aVal, bVal;
+    
+    if (typeof a === 'object' && a !== null) {
+      aVal = a[fieldName];
+    } else {
+      aVal = a;
+    }
+    
+    if (typeof b === 'object' && b !== null) {
+      bVal = b[fieldName];
+    } else {
+      bVal = b;
+    }
+    
+    // Handle different data types
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return direction === 'desc' ? bVal - aVal : aVal - bVal;
+    }
+    
+    // String comparison
+    const aStr = String(aVal || '');
+    const bStr = String(bVal || '');
+    
+    if (direction === 'desc') {
+      return bStr.localeCompare(aStr);
+    }
+    
+    return aStr.localeCompare(bStr);
+  });
+  
+  return sorted;
+},
+
+// Statistical formatters
+median: (value: any, fieldName?: string): string => {
+  if (!Array.isArray(value) || value.length === 0) return '0.00';
+  
+  const numbers: number[] = [];
+  
+  for (const item of value) {
+    let num: number;
+    
+    if (fieldName && typeof item === 'object' && item !== null) {
+      num = parseFloat(item[fieldName]);
+    } else {
+      num = parseFloat(item);
+    }
+    
+    if (!isNaN(num)) {
+      numbers.push(num);
+    }
+  }
+  
+  if (numbers.length === 0) return '0.00';
+  
+  numbers.sort((a, b) => a - b);
+  const mid = Math.floor(numbers.length / 2);
+  
+  if (numbers.length % 2 === 0) {
+    return ((numbers[mid - 1] + numbers[mid]) / 2).toFixed(2);
+  } else {
+    return numbers[mid].toFixed(2);
+  }
+},
+
+// Filtering formatters
+filter: (value: any, condition: string): any => {
+  if (!Array.isArray(value) || !condition) return value;
+  
+  const [field, operator, expectedValue] = condition.split(/([><=!]+)/);
+  if (!field || !operator || expectedValue === undefined) return value;
+  
+  return value.filter(item => {
+    if (typeof item !== 'object' || item === null) return false;
+    
+    const itemValue = item[field.trim()];
+    const compareValue = expectedValue.trim();
+    
+    switch (operator.trim()) {
+      case '=':
+      case '==':
+        return String(itemValue) === compareValue;
+      case '!=':
+        return String(itemValue) !== compareValue;
+      case '>':
+        return parseFloat(itemValue) > parseFloat(compareValue);
+      case '<':
+        return parseFloat(itemValue) < parseFloat(compareValue);
+      case '>=':
+        return parseFloat(itemValue) >= parseFloat(compareValue);
+      case '<=':
+        return parseFloat(itemValue) <= parseFloat(compareValue);
+      default:
+        return true;
+    }
+  });
+},
+
+// Utility formatters
+distinct: (value: any, fieldName?: string): any => {
+  if (!Array.isArray(value)) return value;
+  
+  const seen = new Set();
+  
+  return value.filter(item => {
+    let key: any;
+    
+    if (fieldName && typeof item === 'object' && item !== null) {
+      key = item[fieldName];
+    } else {
+      key = item;
+    }
+    
+    const keyStr = JSON.stringify(key);
+    if (seen.has(keyStr)) {
+      return false;
+    }
+    
+    seen.add(keyStr);
+    return true;
+  });
+},
+
+reverse: (value: any): any => {
+  if (Array.isArray(value)) {
+    return [...value].reverse();
+  }
+  if (typeof value === 'string') {
+    return value.split('').reverse().join('');
+  }
+  return value;
+},
     // Text formatting
     bold: (value: any): { value: any; formatting: Partial<RunProperties> } => ({
       value,
