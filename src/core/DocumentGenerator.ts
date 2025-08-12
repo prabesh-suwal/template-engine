@@ -1,20 +1,26 @@
-import { BuiltInFormatters } from '../formatters';
 import { 
   ParsedTemplate, 
   ProcessedData, 
-  GenerationResult, 
-  ExtractedFiles,
-  TemplateOptions,
-  ImageData,
-  ChartData,
-  TemplateTag
+  TemplateTag, 
+  ExtractedFiles, 
+  ImageData, 
+  ChartData, 
+  TableData,
+  GenerationResult,
+  TemplateOptions 
 } from '../types/index';
-import { XMLUtils } from '../utils/xml';
 import { ZipUtils } from '../utils/zip';
+import { XMLUtils } from '../utils/xml';
+import { BuiltInFormatters } from '../formatters';
 
+/**
+ * Document Generator handles the final document generation
+ * by replacing template tags with processed data
+ */
 export class DocumentGenerator {
+  
   /**
-   * Generate final document from template and processed data
+   * Generate the final document from parsed template and processed data
    */
   async generateDocument(
     parsedTemplate: ParsedTemplate,
@@ -22,46 +28,29 @@ export class DocumentGenerator {
     options: TemplateOptions = {}
   ): Promise<GenerationResult> {
     const startTime = Date.now();
-    const warnings: string[] = [];
-
+    
     try {
-      // Clone the original files to avoid modifying the template
-      const modifiedFiles = await this.prepareModifiedFiles(parsedTemplate);
+      // Create a copy of the template files to modify
+      const modifiedFiles = this.cloneExtractedFiles(parsedTemplate);
 
-      // Process each template tag
-      await this.processTemplateTags(
-        parsedTemplate,
-        processedData,
-        modifiedFiles,
-        warnings
-      );
+      // Process template tags in each file
+      await this.processAllTemplateTags(parsedTemplate.templateTags, processedData, modifiedFiles);
 
-      // Add media files (images, charts)
-      await this.addMediaFiles(
-        processedData,
-        modifiedFiles,
-        parsedTemplate
-      );
+      // Handle media files (images, charts)
+      await this.processMediaFiles(processedData, modifiedFiles, parsedTemplate);
 
-      // Update relationships and content types
-      await this.updateDocumentStructure(
-        modifiedFiles,
-        processedData,
-        parsedTemplate
-      );
-
-      // Generate final DOCX
-      const finalBuffer = await ZipUtils.createDocx(modifiedFiles);
+      // Generate the final DOCX buffer
+      const buffer = await ZipUtils.createDocx(modifiedFiles);
 
       const processingTime = Date.now() - startTime;
 
       return {
-        buffer: finalBuffer,
+        buffer,
         metadata: {
           templateTags: parsedTemplate.templateTags.length,
           processingTime,
           outputFormat: options.convertTo || 'docx',
-          warnings: warnings.length > 0 ? warnings : undefined
+          warnings: []
         }
       };
 
@@ -71,37 +60,75 @@ export class DocumentGenerator {
   }
 
   /**
-   * Prepare modified files from template
+   * Validate the generated document
    */
-  private async prepareModifiedFiles(parsedTemplate: ParsedTemplate): Promise<ExtractedFiles> {
-    const modifiedFiles: ExtractedFiles = {};
+  async validateGeneratedDocument(buffer: Buffer): Promise<{
+    isValid: boolean;
+    warnings: string[];
+  }> {
+    const warnings: string[] = [];
+    let isValid = true;
 
-    // Convert XML files back to strings and prepare for modification
-    for (const [fileName, xmlDoc] of parsedTemplate.xmlFiles) {
-      modifiedFiles[fileName] = Buffer.from(xmlDoc.xml, 'utf8');
+    try {
+      // Basic DOCX structure validation
+      const extractedFiles = await ZipUtils.extractDocx(buffer);
+      const validation = ZipUtils.validateDocxStructure(extractedFiles);
+      
+      if (!validation.isValid) {
+        isValid = false;
+        warnings.push(...validation.errors);
+      }
+
+      // Check for remaining template tags
+      const xmlFiles = ZipUtils.getXMLFiles(extractedFiles);
+      for (const fileName of xmlFiles) {
+        const content = ZipUtils.getFileAsString(extractedFiles, fileName);
+        const remainingTags = content.match(/\{data\.[^}]+\}/g);
+        if (remainingTags) {
+          warnings.push(`Unprocessed template tags found in ${fileName}: ${remainingTags.join(', ')}`);
+        }
+      }
+
+    } catch (error) {
+      isValid = false;
+      warnings.push(`Validation error: ${error instanceof Error ? error.message : error}`);
     }
 
-    // Copy media files
-    for (const [fileName, buffer] of parsedTemplate.mediaFiles) {
-      modifiedFiles[fileName] = Buffer.from(buffer);
-    }
-
-    return modifiedFiles;
+    return { isValid, warnings };
   }
 
   /**
-   * Process all template tags in the document
+   * Clone extracted files for modification
    */
-  private async processTemplateTags(
-    parsedTemplate: ParsedTemplate,
-    processedData: ProcessedData,
-    modifiedFiles: ExtractedFiles,
-    warnings: string[]
-  ): Promise<void> {
-    // Group tags by file for efficient processing
-    const tagsByFile = new Map<string, typeof parsedTemplate.templateTags>();
+  private cloneExtractedFiles(parsedTemplate: ParsedTemplate): ExtractedFiles {
+    // Create a deep copy of the extracted files
+    const clonedFiles: ExtractedFiles = {};
     
-    for (const tag of parsedTemplate.templateTags) {
+    // Convert XML files back to Buffers for the extracted files structure
+    for (const [fileName, fileData] of parsedTemplate.xmlFiles) {
+      clonedFiles[fileName] = Buffer.from(fileData.xml, 'utf8');
+    }
+    
+    // Add media files
+    for (const [fileName, buffer] of parsedTemplate.mediaFiles) {
+      clonedFiles[fileName] = buffer;
+    }
+
+    return clonedFiles;
+  }
+
+  /**
+   * Process all template tags across all files
+   */
+  private async processAllTemplateTags(
+    templateTags: TemplateTag[],
+    processedData: ProcessedData,
+    modifiedFiles: ExtractedFiles
+  ): Promise<void> {
+    // Group tags by file
+    const tagsByFile = new Map<string, TemplateTag[]>();
+    
+    for (const tag of templateTags) {
       const fileName = tag.position.parentElement;
       if (!tagsByFile.has(fileName)) {
         tagsByFile.set(fileName, []);
@@ -114,13 +141,14 @@ export class DocumentGenerator {
       try {
         await this.processFileTemplateTags(fileName, tags, processedData, modifiedFiles);
       } catch (error) {
-        warnings.push(`Error processing ${fileName}: ${error instanceof Error ? error.message : error}`);
+        console.error(`Error processing tags in file ${fileName}:`, error);
+        throw error;
       }
     }
   }
 
   /**
-   * Process template tags in a specific file
+   * Process template tags in a specific file - FIXED APPROACH
    */
   private async processFileTemplateTags(
     fileName: string,
@@ -130,16 +158,22 @@ export class DocumentGenerator {
   ): Promise<void> {
     let xmlContent = ZipUtils.getFileAsString(modifiedFiles, fileName);
 
-    // Group table iteration tags that belong to the same table
-    const tableGroups = this.groupTableIterationTags(tags);
+    console.log(`\n=== Processing ${tags.length} tags in ${fileName} ===`);
+
+    // Separate table iteration tags from regular tags
+    const tableIterationTags = tags.filter(tag => tag.path.includes('[i]'));
+    const nonTableTags = tags.filter(tag => !tag.path.includes('[i]'));
     
-    // Process table groups first (they need special handling)
-    for (const tableGroup of tableGroups) {
-      xmlContent = await this.processTableGroup(xmlContent, tableGroup, processedData);
+    console.log(`Found ${tableIterationTags.length} table iteration tags`);
+    console.log(`Found ${nonTableTags.length} non-table tags`);
+
+    // Process table tags using proper table row detection
+    if (tableIterationTags.length > 0) {
+      xmlContent = await this.processTableTagsWithProperRows(xmlContent, tableIterationTags, processedData);
     }
 
-    // Process remaining non-table tags
-    const nonTableTags = tags.filter(tag => !tag.path.includes('[i]'));
+    // Process non-table tags
+    console.log(`\n--- Processing ${nonTableTags.length} non-table tags ---`);
     
     // Sort tags by position (last to first to avoid index shifting)
     const sortedTags = [...nonTableTags].sort((a, b) => 
@@ -148,14 +182,11 @@ export class DocumentGenerator {
 
     for (const tag of sortedTags) {
       try {
+        console.log(`Processing non-table tag: ${tag.fullTag}`);
         const replacement = await this.generateTagReplacement(tag, processedData);
-        
-        // Replace the tag in the XML content
         xmlContent = this.replaceTagInXML(xmlContent, tag, replacement);
-        
       } catch (error) {
         console.error(`Error processing tag ${tag.fullTag}:`, error);
-        // Replace with error message to avoid corrupting document
         const errorMsg = `[Error: ${error instanceof Error ? error.message : 'Unknown error'}]`;
         xmlContent = xmlContent.replace(tag.fullTag, errorMsg);
       }
@@ -163,218 +194,272 @@ export class DocumentGenerator {
 
     // Update the file
     ZipUtils.setFileFromString(modifiedFiles, fileName, xmlContent);
+    console.log(`=== Completed processing ${fileName} ===\n`);
   }
 
   /**
-   * Group table iteration tags that belong to the same table
+   * FIXED: Process table tags with proper Word table row structure
    */
-  private groupTableIterationTags(tags: TemplateTag[]): TemplateTag[][] {
-    const tableIterationTags = tags.filter(tag => tag.path.includes('[i]'));
-    const groups: TemplateTag[][] = [];
-    const processed = new Set<string>();
+  private async processTableTagsWithProperRows(
+    xmlContent: string,
+    tableIterationTags: TemplateTag[],
+    processedData: ProcessedData
+  ): Promise<string> {
+    console.log(`\n>>> Processing ${tableIterationTags.length} table iteration tags with proper rows`);
 
+    // Group tags by their base array path
+    const tagsByArray = new Map<string, TemplateTag[]>();
+    
     for (const tag of tableIterationTags) {
-      if (processed.has(tag.id)) continue;
+      const baseArray = tag.path.split('[i]')[0];
+      if (!tagsByArray.has(baseArray)) {
+        tagsByArray.set(baseArray, []);
+      }
+      tagsByArray.get(baseArray)!.push(tag);
+    }
 
-      // Find all tags that belong to the same table row
-      const baseArray = tag.path.split('[i]')[0]; // e.g., "data.items"
-      const sameTableTags = tableIterationTags.filter(t => 
-        t.path.startsWith(baseArray + '[i]') && !processed.has(t.id)
-      );
+    console.log(`Found ${tagsByArray.size} different arrays:`, Array.from(tagsByArray.keys()));
 
-      if (sameTableTags.length > 0) {
-        groups.push(sameTableTags);
-        sameTableTags.forEach(t => processed.add(t.id));
+    // Process each array type
+    for (const [baseArrayPath, arrayTags] of tagsByArray) {
+      console.log(`\n--- Processing array: ${baseArrayPath} with ${arrayTags.length} tags ---`);
+      
+      try {
+        xmlContent = await this.processArrayWithTableRows(xmlContent, arrayTags, processedData, baseArrayPath);
+      } catch (error) {
+        console.error(`Error processing array ${baseArrayPath}:`, error);
+        // Continue with other arrays
       }
     }
 
-    return groups;
+    return xmlContent;
   }
 
   /**
-   * Find the table row template that contains the iteration tags
+   * Process array tags with proper table row detection
    */
-  private findTableRowTemplate(xmlContent: string, tableGroup: TemplateTag[]): { content: string; start: number; end: number } | null {
-    const firstTag = tableGroup[0];
-    const tagPosition = xmlContent.indexOf(firstTag.fullTag);
+  private async processArrayWithTableRows(
+    xmlContent: string,
+    arrayTags: TemplateTag[],
+    processedData: ProcessedData,
+    baseArrayPath: string
+  ): Promise<string> {
+    console.log(`Processing ${arrayTags.length} tags for array: ${baseArrayPath}`);
+
+    // Get the array data
+    const firstTag = arrayTags[0];
+    let tableData = processedData.dynamicTables.get(firstTag.id);
     
-    if (tagPosition === -1) {
-      console.log('Tag not found in XML content');
-      return null;
-    }
-
-    console.log(`Found first tag at position ${tagPosition}`);
-
-    // Try to find Word table row structure first
-    let result = this.findWordTableRow(xmlContent, tableGroup, tagPosition);
-    if (result) {
-      console.log('Found Word table row structure');
-      return result;
-    }
-
-    // Fallback to simpler patterns
-    result = this.findSimpleTableRowTemplate(xmlContent, tableGroup);
-    if (result) {
-      console.log('Found simple table row pattern');
-      return result;
-    }
-
-    console.log('No table row pattern found');
-    return null;
-  }
-
-  /**
-   * Find Word XML table row structure
-   */
-  private findWordTableRow(xmlContent: string, tableGroup: TemplateTag[], tagPosition: number): { content: string; start: number; end: number } | null {
-    // Look for <w:tr> that contains our tags
-    let searchStart = Math.max(0, tagPosition - 5000); // Search backwards up to 5000 chars
-    let searchEnd = Math.min(xmlContent.length, tagPosition + 5000); // Search forwards up to 5000 chars
-
-    // Find all <w:tr> elements in the search area
-    let pos = searchStart;
-    while (pos < searchEnd) {
-      const trStartPos = xmlContent.indexOf('<w:tr', pos);
-      if (trStartPos === -1 || trStartPos > searchEnd) break;
-
-      const trEndPos = xmlContent.indexOf('</w:tr>', trStartPos);
-      if (trEndPos === -1) break;
-
-      const rowContent = xmlContent.substring(trStartPos, trEndPos + 7);
-      
-      // Check if this row contains ALL our tags
-      let containsAllTags = true;
-      for (const tag of tableGroup) {
-        if (!rowContent.includes(tag.fullTag)) {
-          containsAllTags = false;
+    // Try to find data with any tag from this array
+    if (!tableData) {
+      for (const tag of arrayTags) {
+        tableData = processedData.dynamicTables.get(tag.id);
+        if (tableData) {
+          console.log(`Found data using tag: ${tag.id}`);
           break;
         }
       }
-
-      if (containsAllTags) {
-        console.log(`Found Word table row: ${trStartPos} to ${trEndPos + 7}`);
-        return {
-          content: rowContent,
-          start: trStartPos,
-          end: trEndPos + 7
-        };
-      }
-
-      pos = trEndPos + 7;
     }
 
-    return null;
-  }
-
-  /**
-   * Fallback method to find table rows in simpler formats  
-   */
-  private findSimpleTableRowTemplate(xmlContent: string, tableGroup: TemplateTag[]): { content: string; start: number; end: number } | null {
-    const firstTag = tableGroup[0];
-    const lastTag = tableGroup[tableGroup.length - 1];
-    
-    const firstPos = xmlContent.indexOf(firstTag.fullTag);
-    const lastPos = xmlContent.indexOf(lastTag.fullTag);
-    
-    if (firstPos === -1 || lastPos === -1) return null;
-
-    const startPos = Math.min(firstPos, lastPos);
-    const endPos = Math.max(firstPos + firstTag.fullTag.length, lastPos + lastTag.fullTag.length);
-
-    // Expand to include paragraph boundaries
-    let lineStart = startPos;
-    let lineEnd = endPos;
-
-    // Look backwards for paragraph start
-    for (let i = startPos; i >= 0; i--) {
-      if (xmlContent.substring(i, i + 5) === '<w:p>' || 
-          xmlContent.substring(i, i + 4) === '<w:p ') {
-        lineStart = i;
-        break;
-      }
-      // Stop if we hit another paragraph end
-      if (xmlContent.substring(i, i + 6) === '</w:p>') {
-        lineStart = i + 6;
-        break;
-      }
-    }
-
-    // Look forwards for paragraph end
-    for (let i = endPos; i < xmlContent.length; i++) {
-      if (xmlContent.substring(i, i + 6) === '</w:p>') {
-        lineEnd = i + 6;
-        break;
-      }
-      // Stop if we hit another paragraph start
-      if (xmlContent.substring(i, i + 5) === '<w:p>' || 
-          xmlContent.substring(i, i + 4) === '<w:p ') {
-        break;
-      }
-    }
-
-    const content = xmlContent.substring(lineStart, lineEnd);
-    console.log(`Simple table row template: ${lineStart} to ${lineEnd}, content length: ${content.length}`);
-
-    return {
-      content,
-      start: lineStart,
-      end: lineEnd
-    };
-  }
-
-  /**
-   * Process a group of table iteration tags with proper row duplication
-   */
-  private async processTableGroup(
-    xmlContent: string,
-    tableGroup: TemplateTag[],
-    processedData: ProcessedData
-  ): Promise<string> {
-    if (tableGroup.length === 0) return xmlContent;
-
-    console.log(`Processing table group with ${tableGroup.length} tags`);
-
-    // Get the table data from the first tag in the group
-    const firstTag = tableGroup[0];
-    const tableData = processedData.dynamicTables.get(firstTag.id);
-    
     if (!tableData || tableData.length === 0) {
-      console.log('No table data found, removing tags');
-      // Simply remove the tags if no data
+      console.log(`❌ No data found for array ${baseArrayPath}, removing tags`);
       let result = xmlContent;
-      for (const tag of tableGroup) {
+      for (const tag of arrayTags) {
         result = result.replace(tag.fullTag, '');
       }
       return result;
     }
 
     const rows = tableData[0].rows;
-    console.log(`Found ${rows.length} rows of data`);
+    console.log(`✅ Found ${rows.length} rows of data for ${baseArrayPath}`);
 
-    // Find the table row template that contains these tags
-    const rowTemplate = this.findTableRowTemplate(xmlContent, tableGroup);
-    if (!rowTemplate) {
-      console.warn('Could not find table row template, using simple replacement');
-      // Fallback to simple replacement with first item
-      return this.simpleTableReplacement(xmlContent, tableGroup, rows[0]);
+    // Find table row templates that contain these tags
+    const tableRowTemplates = this.findTableRowTemplates(xmlContent, arrayTags);
+    
+    console.log(`Found ${tableRowTemplates.length} table row templates for ${baseArrayPath}`);
+
+    // Process each table row template from last to first (to avoid position shifting)
+    let result = xmlContent;
+    for (let i = tableRowTemplates.length - 1; i >= 0; i--) {
+      const template = tableRowTemplates[i];
+      console.log(`Processing table row template ${i + 1}: positions ${template.start}-${template.end}`);
+      
+      result = this.expandTableRowTemplate(result, template, rows, arrayTags);
     }
 
-    console.log(`Found table row template: ${rowTemplate.content.length} characters`);
+    return result;
+  }
 
-    // Generate new rows for each data item
-    const generatedRows: string[] = [];
+  /**
+   * Find proper Word table row templates (<w:tr> elements) containing the tags
+   */
+  private findTableRowTemplates(xmlContent: string, arrayTags: TemplateTag[]): Array<{
+    start: number;
+    end: number;
+    content: string;
+    tags: TemplateTag[];
+  }> {
+    const templates: Array<{start: number; end: number; content: string; tags: TemplateTag[]}> = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const rowData = rows[i];
-      let currentRow = rowTemplate.content;
+    // Find unique tag positions (deduplicate)
+    const uniqueTagPositions = new Map<string, number>();
+    for (const tag of arrayTags) {
+      let searchPos = 0;
+      while (true) {
+        const pos = xmlContent.indexOf(tag.fullTag, searchPos);
+        if (pos === -1) break;
+        
+        const key = `${tag.fullTag}@${pos}`;
+        if (!uniqueTagPositions.has(key)) {
+          uniqueTagPositions.set(key, pos);
+        }
+        searchPos = pos + tag.fullTag.length;
+      }
+    }
+
+    console.log(`Found ${uniqueTagPositions.size} unique tag positions`);
+
+    // For each unique tag position, find the containing table row
+    const processedRows = new Set<string>();
+    
+    for (const [tagKey, position] of uniqueTagPositions) {
+      const rowInfo = this.findContainingTableRow(xmlContent, position);
       
-      console.log(`Processing row ${i + 1} with data:`, JSON.stringify(rowData));
+      if (rowInfo) {
+        const rowKey = `${rowInfo.start}-${rowInfo.end}`;
+        if (!processedRows.has(rowKey)) {
+          processedRows.add(rowKey);
+          
+          // Find all tags within this row
+          const tagsInRow = arrayTags.filter(tag => {
+            const tagPos = xmlContent.indexOf(tag.fullTag, rowInfo.start);
+            return tagPos >= rowInfo.start && tagPos < rowInfo.end;
+          });
+
+          if (tagsInRow.length > 0) {
+            templates.push({
+              start: rowInfo.start,
+              end: rowInfo.end,
+              content: rowInfo.content,
+              tags: tagsInRow
+            });
+            console.log(`Found table row template with ${tagsInRow.length} tags at ${rowInfo.start}-${rowInfo.end}`);
+          }
+        }
+      }
+    }
+
+    return templates.sort((a, b) => a.start - b.start);
+  }
+
+  /**
+   * Find the Word table row (<w:tr>) that contains a position
+   */
+  private findContainingTableRow(xmlContent: string, position: number): {
+    start: number;
+    end: number;
+    content: string;
+  } | null {
+    // Look backwards for <w:tr> - be more careful about matching
+    let rowStart = -1;
+    let searchPos = position;
+    
+    while (searchPos >= 0) {
+      const trPos = xmlContent.lastIndexOf('<w:tr', searchPos);
+      if (trPos === -1) break;
       
-      // Replace each tag in this row with the current row's data
-      for (const tag of tableGroup) {
+      // Make sure this is a complete tag start (not part of another tag)
+      const nextChar = xmlContent[trPos + 5];
+      if (nextChar === '>' || nextChar === ' ') {
+        rowStart = trPos;
+        break;
+      }
+      
+      searchPos = trPos - 1;
+    }
+
+    if (rowStart === -1) {
+      console.log(`No <w:tr> found before position ${position}`);
+      return null;
+    }
+
+    // Look forwards for the matching </w:tr> - count nested tr tags
+    let rowEnd = -1;
+    let trDepth = 0;
+    let i = rowStart;
+    
+    while (i < xmlContent.length) {
+      if (xmlContent.substring(i, i + 5) === '<w:tr') {
+        // Check if this is a complete tag start
+        const nextChar = xmlContent[i + 5];
+        if (nextChar === '>' || nextChar === ' ') {
+          trDepth++;
+        }
+      } else if (xmlContent.substring(i, i + 7) === '</w:tr>') {
+        trDepth--;
+        if (trDepth === 0) {
+          rowEnd = i + 7;
+          break;
+        }
+      }
+      i++;
+    }
+
+    if (rowEnd === -1) {
+      console.log(`No matching </w:tr> found after position ${position}`);
+      return null;
+    }
+
+    // Validate that we have a complete, well-formed row
+    const content = xmlContent.substring(rowStart, rowEnd);
+    
+    // Basic validation - check that we have proper table cell structure
+    if (!content.includes('<w:tc') || !content.includes('</w:tc>')) {
+      console.log(`Table row doesn't contain proper table cells`);
+      return null;
+    }
+
+    console.log(`Found well-formed table row: ${rowStart} to ${rowEnd}, length: ${content.length}`);
+
+    return {
+      start: rowStart,
+      end: rowEnd,
+      content
+    };
+  }
+
+  /**
+   * Expand a table row template with all data rows - with XML validation
+   */
+  private expandTableRowTemplate(
+    xmlContent: string,
+    template: {start: number; end: number; content: string; tags: TemplateTag[]},
+    rows: any[],
+    arrayTags: TemplateTag[]
+  ): string {
+    console.log(`Expanding table row template with ${rows.length} rows`);
+    console.log(`Template content preview: ${template.content.substring(0, 100)}...`);
+
+    // Validate template content before processing
+    if (!this.validateTableRowXML(template.content)) {
+      console.error(`Invalid table row XML structure, skipping expansion`);
+      return xmlContent;
+    }
+
+    // Generate content for each row
+    const expandedRows: string[] = [];
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const rowData = rows[rowIndex];
+      let rowContent = template.content;
+
+      console.log(`Processing row ${rowIndex + 1}:`, JSON.stringify(rowData));
+
+      // Replace each tag in this template with the row data
+      for (const tag of template.tags) {
         const propertyMatch = tag.path.match(/\[i\]\.(.+)$/);
         const propertyName = propertyMatch ? propertyMatch[1] : '';
-        
+
         let value = rowData;
         if (propertyName) {
           const propertyParts = propertyName.split('.');
@@ -383,51 +468,101 @@ export class DocumentGenerator {
           }
         }
 
-        console.log(`  Replacing ${tag.fullTag} with: ${value}`);
-
         // Apply formatters
         const formattedResult = BuiltInFormatters.applyFormatters(value, tag.formatters, tag.formattingContext);
-        currentRow = currentRow.replace(tag.fullTag, String(formattedResult.value || ''));
+        const finalValue = String(formattedResult.value || '');
+
+        console.log(`  ${tag.fullTag} -> "${finalValue}"`);
+        
+        // Replace ALL occurrences of this tag in the row content
+        // Using global regex replace for compatibility with older TypeScript versions
+        const tagRegex = new RegExp(this.escapeRegex(tag.fullTag), 'g');
+        rowContent = rowContent.replace(tagRegex, finalValue);
       }
-      
-      generatedRows.push(currentRow);
+
+      // Validate the generated row content
+      if (this.validateTableRowXML(rowContent)) {
+        expandedRows.push(rowContent);
+      } else {
+        console.error(`Generated invalid XML for row ${rowIndex + 1}, skipping`);
+        // Use original template with safe fallback to avoid corruption
+        let fallbackContent = template.content;
+        if (template.tags.length > 0) {
+          const firstTag = template.tags[0];
+          const propertyMatch = firstTag.path.match(/\[i\]\.(.+)$/);
+          if (propertyMatch && propertyMatch[1]) {
+            const propertyName = propertyMatch[1];
+            const value = rows[rowIndex]?.[propertyName] || '';
+            fallbackContent = template.content.replace(firstTag.fullTag, String(value));
+          }
+        }
+        expandedRows.push(fallbackContent);
+      }
     }
 
-    console.log(`Generated ${generatedRows.length} table rows`);
+    // Validate total content before replacement
+    const allRowsContent = expandedRows.join('');
+    
+    if (!this.validateMultipleTableRowsXML(allRowsContent)) {
+      console.error(`Generated content would create invalid XML structure`);
+      // Fallback: just replace with first row to avoid corruption
+      return xmlContent.substring(0, template.start) + 
+             expandedRows[0] + 
+             xmlContent.substring(template.end);
+    }
 
-    // Replace the original row with all generated rows
-    const allRows = generatedRows.join('');
-    const result = xmlContent.replace(rowTemplate.content, allRows);
-    
-    console.log(`Replaced original row (${rowTemplate.content.length} chars) with ${allRows.length} chars`);
-    
-    return result;
+    console.log(`Replacing ${template.content.length} chars with ${allRowsContent.length} chars`);
+
+    return xmlContent.substring(0, template.start) + 
+           allRowsContent + 
+           xmlContent.substring(template.end);
   }
 
   /**
-   * Fallback method for simple table replacement
+   * Validate that table row XML is well-formed
    */
-  private simpleTableReplacement(xmlContent: string, tableGroup: TemplateTag[], firstRowData: any): string {
-    let result = xmlContent;
+  private validateTableRowXML(content: string): boolean {
+    // Basic validation - check for balanced tags
+    const openTr = (content.match(/<w:tr[\s>]/g) || []).length;
+    const closeTr = (content.match(/<\/w:tr>/g) || []).length;
     
-    for (const tag of tableGroup) {
-      const propertyMatch = tag.path.match(/\[i\]\.(.+)$/);
-      const propertyName = propertyMatch ? propertyMatch[1] : '';
-      
-      let value = firstRowData;
-      if (propertyName) {
-        const propertyParts = propertyName.split('.');
-        for (const part of propertyParts) {
-          value = value && value[part];
-        }
-      }
-
-      // Apply formatters
-      const formattedResult = BuiltInFormatters.applyFormatters(value, tag.formatters, tag.formattingContext);
-      result = result.replace(tag.fullTag, String(formattedResult.value || ''));
+    if (openTr !== closeTr) {
+      console.log(`Unbalanced <w:tr> tags: ${openTr} open, ${closeTr} close`);
+      return false;
     }
 
-    return result;
+    // Check for table cells
+    if (!content.includes('<w:tc') || !content.includes('</w:tc>')) {
+      console.log(`Missing table cell structure`);
+      return false;
+    }
+
+    // Check for critical table structure tags
+    const requiredTags = ['<w:tr', '</w:tr>', '<w:tc', '</w:tc>'];
+    for (const tag of requiredTags) {
+      if (!content.includes(tag)) {
+        console.log(`Missing required tag: ${tag}`);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Validate multiple table rows XML structure
+   */
+  private validateMultipleTableRowsXML(content: string): boolean {
+    // Count table rows
+    const openTr = (content.match(/<w:tr[\s>]/g) || []).length;
+    const closeTr = (content.match(/<\/w:tr>/g) || []).length;
+    
+    if (openTr !== closeTr || openTr === 0) {
+      console.log(`Invalid multiple rows structure: ${openTr} open, ${closeTr} close`);
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -485,9 +620,9 @@ export class DocumentGenerator {
     tag: TemplateTag,
     processedData: ProcessedData
   ): string {
-    // Table iteration tags are handled separately in processTableGroup
+    // Table iteration tags are handled separately
     if (tag.path.includes('[i]')) {
-      return tag.fullTag; // Leave unchanged, will be processed by table group logic
+      return tag.fullTag; // Leave unchanged, will be processed by table logic
     }
 
     // Direct table/array access
@@ -583,212 +718,76 @@ export class DocumentGenerator {
     if (formatting.color) {
       runProps += `<w:color w:val="${formatting.color}"/>`;
     }
-    if (formatting.fontSize) {
-      runProps += `<w:sz w:val="${formatting.fontSize * 2}"/>`;
-    }
-    if (formatting.fontFamily) {
-      runProps += `<w:rFonts w:ascii="${formatting.fontFamily}"/>`;
-    }
 
     if (runProps) {
       return `<w:r><w:rPr>${runProps}</w:rPr><w:t>${this.escapeXML(text)}</w:t></w:r>`;
     }
 
-    return this.escapeXML(text);
+    return `<w:r><w:t>${this.escapeXML(text)}</w:t></w:r>`;
   }
 
   /**
    * Generate Word XML for images
    */
   private generateImageXML(imageData: ImageData): string {
-    // This is a simplified image XML
-    // A full implementation would need proper Word drawing XML
-    const imageId = imageData.relationshipId;
-    const width = imageData.width || 200;
-    const height = imageData.height || 150;
-
-    return `
-      <w:r>
-        <w:drawing>
-          <wp:inline>
-            <wp:extent cx="${width * 9525}" cy="${height * 9525}"/>
-            <wp:docPr id="1" name="Picture"/>
-            <a:graphic>
-              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                <pic:pic>
-                  <pic:nvPicPr>
-                    <pic:cNvPr id="1" name="Picture"/>
-                    <pic:cNvPicPr/>
-                  </pic:nvPicPr>
-                  <pic:blipFill>
-                    <a:blip r:embed="${imageId}"/>
-                    <a:stretch>
-                      <a:fillRect/>
-                    </a:stretch>
-                  </pic:blipFill>
-                  <pic:spPr>
-                    <a:xfrm>
-                      <a:off x="0" y="0"/>
-                      <a:ext cx="${width * 9525}" cy="${height * 9525}"/>
-                    </a:xfrm>
-                    <a:prstGeom prst="rect"/>
-                  </pic:spPr>
-                </pic:pic>
-              </a:graphicData>
-            </a:graphic>
-          </wp:inline>
-        </w:drawing>
-      </w:r>
-    `;
+    // Simplified implementation
+    return `<w:r>
+      <w:drawing>
+        <wp:inline>
+          <wp:extent cx="3000000" cy="2000000"/>
+          <wp:docPr id="1" name="Image"/>
+          <a:graphic>
+            <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+              <pic:pic>
+                <pic:nvPicPr>
+                  <pic:cNvPr id="1" name="Image"/>
+                  <pic:cNvPicPr/>
+                </pic:nvPicPr>
+                <pic:blipFill>
+                  <a:blip r:embed="${imageData.relationshipId}"/>
+                  <a:stretch>
+                    <a:fillRect/>
+                  </a:stretch>
+                </pic:blipFill>
+                <pic:spPr>
+                  <a:xfrm>
+                    <a:off x="0" y="0"/>
+                    <a:ext cx="3000000" cy="2000000"/>
+                  </a:xfrm>
+                  <a:prstGeom prst="rect">
+                    <a:avLst/>
+                  </a:prstGeom>
+                </pic:spPr>
+              </pic:pic>
+            </a:graphicData>
+          </a:graphic>
+        </wp:inline>
+      </w:drawing>
+    </w:r>`;
   }
 
   /**
    * Convert HTML to Word XML (simplified)
    */
-  private convertHtmlToWordXML(html: string): string {
-    // This is a very basic conversion
-    // A full implementation would use a proper HTML to WordML converter
+  private convertHtmlToWordXML(htmlContent: string): string {
+    let wordXML = htmlContent;
     
-    // Remove HTML tags and decode entities
-    let text = html.replace(/<[^>]*>/g, '');
-    text = text.replace(/&nbsp;/g, ' ');
-    text = text.replace(/&amp;/g, '&');
-    text = text.replace(/&lt;/g, '<');
-    text = text.replace(/&gt;/g, '>');
-    text = text.replace(/&quot;/g, '"');
-
-    return this.escapeXML(text);
-  }
-
-  /**
-   * Add media files to the document
-   */
-  private async addMediaFiles(
-    processedData: ProcessedData,
-    modifiedFiles: ExtractedFiles,
-    parsedTemplate: ParsedTemplate
-  ): Promise<void> {
-    // Add images
-    for (const [tagId, imageData] of processedData.images) {
-      const fileName = ZipUtils.generateMediaFileName(modifiedFiles, imageData.extension);
-      const fullPath = ZipUtils.addMediaFile(modifiedFiles, fileName, imageData.buffer);
-      
-      // Update the relationship ID to point to the correct file
-      imageData.relationshipId = `rId${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
-    }
-
-    // Add charts (as images)
-    for (const [tagId, chartData] of processedData.charts) {
-      const fileName = ZipUtils.generateMediaFileName(modifiedFiles, 'png');
-      const fullPath = ZipUtils.addMediaFile(modifiedFiles, fileName, chartData.buffer);
-      
-      // Update the relationship ID
-      chartData.relationshipId = `rId${Date.now()}${Math.random().toString(36).substr(2, 5)}`;
-    }
-  }
-
-  /**
-   * Update document structure (relationships, content types)
-   */
-  private async updateDocumentStructure(
-    modifiedFiles: ExtractedFiles,
-    processedData: ProcessedData,
-    parsedTemplate: ParsedTemplate
-  ): Promise<void> {
-    try {
-      // Update relationships
-      await this.updateRelationships(modifiedFiles, processedData);
-      
-      // Update content types
-      await this.updateContentTypes(modifiedFiles, processedData);
-      
-    } catch (error) {
-      console.warn('Failed to update document structure:', error);
-    }
-  }
-
-  /**
-   * Update document relationships
-   */
-  private async updateRelationships(
-    modifiedFiles: ExtractedFiles,
-    processedData: ProcessedData
-  ): Promise<void> {
-    if (!ZipUtils.fileExists(modifiedFiles, 'word/_rels/document.xml.rels')) {
-      return;
-    }
-
-    let relsXml = ZipUtils.getFileAsString(modifiedFiles, 'word/_rels/document.xml.rels');
+    // Basic tag conversions
+    wordXML = wordXML.replace(/<strong>/g, '<w:r><w:rPr><w:b/></w:rPr><w:t>');
+    wordXML = wordXML.replace(/<\/strong>/g, '</w:t></w:r>');
+    wordXML = wordXML.replace(/<em>/g, '<w:r><w:rPr><w:i/></w:rPr><w:t>');
+    wordXML = wordXML.replace(/<\/em>/g, '</w:t></w:r>');
+    wordXML = wordXML.replace(/<br\s*\/?>/g, '<w:br/>');
+    wordXML = wordXML.replace(/<p>/g, '<w:p><w:r><w:t>');
+    wordXML = wordXML.replace(/<\/p>/g, '</w:t></w:r></w:p>');
     
-    // Add relationships for images and charts
-    // const allMedia = new Map([...processedData.images, ...processedData.charts]);
+    // Remove remaining HTML tags
+    wordXML = wordXML.replace(/<[^>]*>/g, '');
     
-    // for (const [tagId, mediaData] of allMedia) {
-    //   const typedMediaData = mediaData as ImageData | ChartData;
-    //   const relationshipXml = `
-    //     <Relationship Id="${typedMediaData.relationshipId}" 
-    //                  Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" 
-    //                  Target="media/image${Date.now()}.${(typedMediaData as ImageData).extension || 'png'}"/>
-    //   `;
-      
-    //   // Insert before closing tag
-    //   relsXml = relsXml.replace('</Relationships>', relationshipXml + '</Relationships>');
-    // }
-
-    ZipUtils.setFileFromString(modifiedFiles, 'word/_rels/document.xml.rels', relsXml);
-  }
-
-  /**
-   * Update content types
-   */
-  private async updateContentTypes(
-    modifiedFiles: ExtractedFiles,
-    processedData: ProcessedData
-  ): Promise<void> {
-    if (!ZipUtils.fileExists(modifiedFiles, '[Content_Types].xml')) {
-      return;
-    }
-
-    let contentTypesXml = ZipUtils.getFileAsString(modifiedFiles, '[Content_Types].xml');
+    // Escape XML characters
+    wordXML = this.escapeXML(wordXML);
     
-    // Add content types for new media
-    const extensions = new Set<string>();
-    
-    for (const imageData of processedData.images.values()) {
-      extensions.add(imageData.extension);
-    }
-    
-    for (const chartData of processedData.charts.values()) {
-      extensions.add('png'); // Charts are saved as PNG
-    }
-
-    for (const extension of extensions) {
-      const mimeType = this.getMimeType(extension);
-      const defaultXml = `
-        <Default Extension="${extension}" ContentType="${mimeType}"/>
-      `;
-      
-      // Insert before closing tag
-      contentTypesXml = contentTypesXml.replace('</Types>', defaultXml + '</Types>');
-    }
-
-    ZipUtils.setFileFromString(modifiedFiles, '[Content_Types].xml', contentTypesXml);
-  }
-
-  /**
-   * Get MIME type for file extension
-   */
-  private getMimeType(extension: string): string {
-    const mimeTypes: { [key: string]: string } = {
-      'png': 'image/png',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'gif': 'image/gif',
-      'bmp': 'image/bmp',
-      'webp': 'image/webp'
-    };
-
-    return mimeTypes[extension.toLowerCase()] || 'image/png';
+    return wordXML;
   }
 
   /**
@@ -804,40 +803,55 @@ export class DocumentGenerator {
   }
 
   /**
-   * Validate generated document
+   * Process media files (images, charts)
    */
-  async validateGeneratedDocument(buffer: Buffer): Promise<{
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-  }> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    try {
-      // Try to extract and validate the generated DOCX
-      const extractedFiles = await ZipUtils.extractDocx(buffer);
-      const validation = ZipUtils.validateDocxStructure(extractedFiles);
-      
-      errors.push(...validation.errors);
-      
-      // Additional validation checks
-      if (ZipUtils.getTotalSize(extractedFiles) === 0) {
-        errors.push('Generated document is empty');
-      }
-
-      if (!ZipUtils.fileExists(extractedFiles, 'word/document.xml')) {
-        errors.push('Main document file is missing');
-      }
-
-    } catch (error) {
-      errors.push(`Document validation failed: ${error instanceof Error ? error.message : error}`);
+  private async processMediaFiles(
+    processedData: ProcessedData,
+    modifiedFiles: ExtractedFiles,
+    parsedTemplate: ParsedTemplate
+  ): Promise<void> {
+    // Process images
+    for (const [tagId, imageData] of processedData.images) {
+      await this.addImageToDocument(imageData, modifiedFiles, parsedTemplate);
     }
 
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
+    // Process charts (treated as images)
+    for (const [tagId, chartData] of processedData.charts) {
+      const imageData: ImageData = {
+        buffer: chartData.buffer,
+        extension: 'png',
+        relationshipId: chartData.relationshipId
+      };
+      await this.addImageToDocument(imageData, modifiedFiles, parsedTemplate);
+    }
   }
+
+  /**
+   * Add image to document structure
+   */
+  private async addImageToDocument(
+    imageData: ImageData,
+    modifiedFiles: ExtractedFiles,
+    parsedTemplate: ParsedTemplate
+  ): Promise<void> {
+    // Add image file to media folder
+    const mediaFileName = `word/media/image${Date.now()}.${imageData.extension}`;
+    modifiedFiles[mediaFileName] = imageData.buffer;
+
+    // Add relationship and update content types would be implemented here
+  }
+
+/**
+ * Escape special regex characters
+ */
+private escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Generate a unique relationship ID
+ */
+private generateRelationshipId(): string {
+  return `rId${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
 }
