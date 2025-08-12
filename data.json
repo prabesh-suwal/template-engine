@@ -1,53 +1,84 @@
-{"data":{
-"customer": {
-"email": "john@example.com",
-"name": "John Doe",
-"age": 30,
-"address": {
-"street": "123 Main St",
-"city": "Anytown",
-"state": "CA",
-"zip": "12345"
-}
-},
-"invoice": {
-"number": "INV-001",
-"date": "2024-01-15"
-},
-"items": [
-{"description": "Service 1", "price": 100.00, "quantity": 2},
-{"description": "Service 2", "price": 200.00, "quantity": 2},
-{"description": "Service 3", "price": 300.00, "quantity": 2},
-{"description": "Service 4", "price": 400.00, "quantity": 2}
-],
-"addresses": [
-{"zip": 1000.01, "city": "asdasd", "street": "asdasd", "state": "asdasd"},
-{"zip": 2000.00, "city": "qwe", "street": "poiu", "state": "asdasd"}
-],
-"test": {
-    "nest01" : [
+{
+  "data": {
+    "customer": {
+      "email": "john@example.com",
+      "name": "John Doe",
+      "age": 30,
+      "address": {
+        "street": "123 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "12345"
+      }
+    },
+    "invoice": {
+      "number": "INV-001",
+      "date": "2024-01-15"
+    },
+    "items": [
+      {
+        "description": "Service 1",
+        "price": 100,
+        "quantity": 2
+      },
+      {
+        "description": "Service 2",
+        "price": 200,
+        "quantity": 2
+      },
+      {
+        "description": "Service 3",
+        "price": 300,
+        "quantity": 2
+      },
+      {
+        "description": "Service 4",
+        "price": 400,
+        "quantity": 2
+      }
+    ],
+    "addresses": [
+      {
+        "zip": 1000.01,
+        "city": "asdasd",
+        "street": "asdasd",
+        "state": "asdasd"
+      },
+      {
+        "zip": 2000,
+        "city": "qwe",
+        "street": "poiu",
+        "state": "asdasd"
+      }
+    ],
+    "total": 300
+  },
+  "people": [
+    {
+      "name": "Person 1",
+      "addresses": [
         {
-            "name": "John",
-            "age": 30,
-            "address": {
-                "street": "123 Main St",
-                "city": "Anytown",
-                "state": "CA",
-                "zip": "12345"
-            }
+          "city": "New York",
+          "zip": "10001"
         },
         {
-            "name": "Jane",
-            "age": 25,
-            "address": {
-                "street": "456 Elm St",
-                "city": "Othertown",
-                "state": "NY",
-                "zip": "67890"
-            }
+          "city": "Los Angeles",
+          "zip": "90001"
         }
+      ]
+    },
+    {
+      "name": "Person 2",
+      "addresses": [
+        {
+          "city": "Chicago",
+          "zip": "60601"
+        },
+        {
+          "city": "Houston",
+          "zip": "77001"
+        }
+      ]
     }
-],
-"total": 300.00
-}
+  ]
 }
