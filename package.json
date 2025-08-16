@@ -1,24 +1,48 @@
 {
   "name": "docx-template-engine",
   "version": "1.0.0",
-  "description": "A powerful DOCX template engine with JSON data injection",
+  "description": "A powerful DOCX template engine with JSON data injection and REST API with Web UI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:clean && npm run build:ts && npm run build:ui",
+    "build:clean": "rm -rf dist public",
+    "build:ts": "tsc",
+    "build:ui": "npm run build:ui:copy && npm run build:ui:config",
+    "build:ui:copy": "mkdir -p public && cp ui/index.html public/index.html",
+    "build:ui:config": "node scripts/update-ui-config.js",
     "build:check": "node build-check.js",
     "dev": "ts-node src/index.ts",
+    "ui:dev": "npm run build:ui && npm run api:dev",
+    "api:dev": "ts-node api-server.ts",
+    "api:start": "npm run build && node dist/api-server.js",
+    "api:prod": "NODE_ENV=production npm run api:start",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:simple": "ts-node examples/simple-test.ts",
     "test:real": "ts-node test-real.ts",
     "test:interactive": "ts-node interactive-test.ts",
+    "test:api": "ts-node api-test-suite.ts",
     "example": "npm run build && node dist/examples/basic-example.js",
     "example:complex": "npm run build && node dist/examples/complex-example.js",
+    "example:api": "ts-node complete-example.ts",
     "lint": "tsc --noEmit",
-    "clean": "rm -rf dist coverage"
+    "clean": "rm -rf dist coverage public",
+    "setup": "./setup.sh",
+    "start": "npm run api:prod",
+    "stop": "./stop-api.sh",
+    "restart": "./restart-api.sh",
+    "cli": "ts-node cli-tool.ts",
+    "docker:build": "docker build -t docx-template-engine .",
+    "docker:run": "docker run -p 3000:3000 docx-template-engine",
+    "deploy:ubuntu": "npm run build && npm run deploy:copy",
+    "deploy:copy": "rsync -av dist/ public/ package.json $DEPLOY_TARGET/",
+    "pm2:start": "pm2 start dist/api-server.js --name docx-template-engine",
+    "pm2:stop": "pm2 stop docx-template-engine",
+    "pm2:restart": "pm2 restart docx-template-engine",
+    "pm2:logs": "pm2 logs docx-template-engine"
   },
-  "keywords": ["docx", "template", "document", "generation", "pdf"],
+  "keywords": ["docx", "template", "document", "generation", "pdf", "api", "rest", "web-ui"],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
@@ -30,19 +54,48 @@
     "canvas": "^2.11.2",
     "sharp": "^0.33.0",
     "axios": "^1.6.0",
-    "mime-types": "^2.1.35"
+    "mime-types": "^2.1.35",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "winston": "^3.11.0",
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "form-data": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/xml2js": "^0.4.14",
     "@types/mime-types": "^2.1.4",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.11",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/morgan": "^1.9.9",
     "typescript": "^5.3.0",
     "ts-node": "^10.9.0",
     "jest": "^29.7.0",
     "@types/jest": "^29.5.0",
-    "ts-jest": "^29.1.0"
+    "ts-jest": "^29.1.0",
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "bin": {
+    "docx-cli": "./cli-tool.ts"
+  },
+  "files": [
+    "dist/**/*",
+    "public/**/*",
+    "package.json",
+    "README.md"
+  ]
 }
