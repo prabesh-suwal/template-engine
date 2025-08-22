@@ -1,4 +1,6 @@
 import { FormatterFunction, Formatters, FormattingContext, RunProperties } from '../types/index';
+import { ConditionalFormatters } from './conditionals';
+
 
 /**
  * Built-in formatters for the template engine
@@ -408,6 +410,7 @@ reverse: (value: any): any => {
       if (isNaN(num1) || isNaN(num2)) return value;
       return num1 > num2 ? trueValue : falseValue;
     },
+    ...ConditionalFormatters,
 
     // Array formatting
     join: (value: any, separator: string = ', '): string => {

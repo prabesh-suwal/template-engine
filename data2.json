@@ -21,6 +21,29 @@
       "designation": "ऋण अधिकारी"
     }
   },
+  "lender": {
+    "type": "bank",
+    "name": "नेपाल बैंक लिमिटेड",
+    "licenseNumber": "BNK-001-2045",
+    "regulatedBy": "NRB",
+    "category": "A",
+    "registrationNumber": "MF-001-2055",
+    "institutionType": "वाणिज्य बैंक",
+    "address": {
+      "district": "काठमाडौं",
+      "municipality": "काठमाडौं महानगरपालिका",
+      "ward": "१०",
+      "street": "न्यू रोड"
+    },
+    "contact": {
+      "phone": "01-4411234",
+      "email": "loans@nepalbank.com.np"
+    },
+    "signatory": {
+      "name": "रामशरण श्रेष्ठ",
+      "designation": "शाखा प्रबन्धक"
+    }
+  },
   "loan": {
     "agreementNumber": "NSB/HL/2081/001234",
     "date": "2024-01-15T00:00:00.000Z",

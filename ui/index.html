@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DOCX Template Engine - Document Generator</title>
+    <title>DOCX Template Engine</title>
     <style>
         * {
             margin: 0;
@@ -12,125 +12,187 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: white;
             padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
 
-        h1 {
-            text-align: center;
-            color: #333;
+        .header h1 {
+            font-size: 2.5rem;
             margin-bottom: 10px;
-            font-size: 2.5em;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-weight: 700;
         }
 
-        .subtitle {
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .upload-box {
+            border: 3px dashed #e2e8f0;
+            border-radius: 15px;
+            padding: 40px 20px;
             text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-        }
-
-        .form-group {
-            margin-bottom: 25px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
-            font-size: 16px;
-        }
-
-        .file-input-wrapper {
+            transition: all 0.3s ease;
+            cursor: pointer;
             position: relative;
-            display: inline-block;
-            width: 100%;
+            background: #f8fafc;
         }
 
-        input[type="file"] {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f1f5f9;
+            transform: translateY(-2px);
+        }
+
+        .upload-box.dragover {
+            border-color: #667eea;
+            background: #eef2ff;
+        }
+
+        .upload-box.has-file {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        .upload-box h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .upload-box p {
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
         }
 
-        .file-input-display {
-            display: block;
+        .upload-btn:hover {
+            background: #5a67d8;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .json-editor-section {
+            margin-bottom: 40px;
+        }
+
+        .json-editor-section h3 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .json-editor {
             width: 100%;
-            padding: 15px;
-            border: 2px dashed #667eea;
+            height: 300px;
+            border: 2px solid #e2e8f0;
             border-radius: 10px;
-            background: #f8f9ff;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 16px;
-        }
-
-        .file-input-display:hover {
-            border-color: #764ba2;
-            background: #f0f2ff;
-        }
-
-        .file-input-display.has-file {
-            border-style: solid;
-            background: #e8f5e8;
-            border-color: #28a745;
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 200px;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             font-size: 14px;
-            font-family: 'Courier New', monospace;
             resize: vertical;
-            transition: all 0.3s ease;
+            transition: border-color 0.3s ease;
         }
 
-        textarea:focus {
+        .json-editor:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
         .btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
+            padding: 15px 30px;
             border: none;
-            padding: 15px 40px;
             border-radius: 10px;
-            font-size: 18px;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            width: 100%;
-            margin-top: 10px;
         }
 
-        .btn:hover:not(:disabled) {
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
         }
 
         .btn:disabled {
@@ -139,10 +201,81 @@
             transform: none;
         }
 
-        .loading {
+        .result-section {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 40px;
             display: none;
-            text-align: center;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .result-title {
+            font-size: 1.3rem;
+            color: #2d3748;
+        }
+
+        .result-content {
+            background: white;
+            border-radius: 10px;
             padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .template-analysis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .tags-list {
+            margin-top: 20px;
+        }
+
+        .tag-item {
+            background: white;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
         }
 
         .spinner {
@@ -152,7 +285,7 @@
             width: 50px;
             height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -160,426 +293,638 @@
             100% { transform: rotate(360deg); }
         }
 
-        .result {
-            margin-top: 30px;
-            padding: 20px;
+        .alert {
+            padding: 15px 20px;
             border-radius: 10px;
-            display: none;
+            margin: 20px 0;
+            font-weight: 500;
         }
 
-        .result.success {
-            background: #d4edda;
-            border: 2px solid #c3e6cb;
-            color: #155724;
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
         }
 
-        .result.error {
-            background: #f8d7da;
-            border: 2px solid #f5c6cb;
-            color: #721c24;
+        .alert-error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
         }
 
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
+        .alert-warning {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fed7aa;
         }
 
-        .status-online {
-            background: #28a745;
-            animation: pulse 2s infinite;
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
         }
 
-        .status-offline {
-            background: #dc3545;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .api-status {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-
-        .sample-data {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 5px;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 12px;
-        }
-
-        .sample-link {
-            color: #667eea;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .sample-link:hover {
-            color: #764ba2;
-        }
-
-        .help-text {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-            
-            h1 {
-                font-size: 2em;
-            }
-            
-            .grid {
+            .upload-section {
                 grid-template-columns: 1fr;
             }
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 14px;
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📄 DOCX Template Engine</h1>
-        <p class="subtitle">Upload your template and data to generate documents instantly</p>
-
-        <!-- API Status -->
-        <div class="api-status">
-            <div id="apiStatus">
-                <span class="status-indicator status-offline" id="statusIndicator"></span>
-                <span id="statusText">Checking API connection...</span>
-            </div>
+        <div class="header">
+            <h1>📄 DOCX Template Engine</h1>
+            <p>Transform your templates with dynamic data</p>
         </div>
 
-        <!-- Main Form -->
-        <form id="documentForm">
-            <div class="grid">
+        <div class="main-content">
+            <!-- File Upload Section -->
+            <div class="upload-section">
                 <!-- Template Upload -->
-                <div class="form-group">
-                    <label for="templateFile">📁 DOCX Template File</label>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="templateFile" accept=".docx" required>
-                        <div class="file-input-display" id="templateDisplay">
-                            Click to select DOCX template
-                        </div>
-                    </div>
-                    <div class="help-text">Upload your .docx template with {data.field} tags</div>
+                <div class="upload-box" id="templateUpload">
+                    <div class="upload-icon">📄</div>
+                    <h3>Upload Template</h3>
+                    <p>Drop your .docx template file here or click to browse</p>
+                    <button type="button" class="upload-btn" onclick="document.getElementById('templateFile').click()">
+                        Choose Template File
+                    </button>
+                    <input type="file" id="templateFile" class="file-input" accept=".docx" />
+                    <div id="templateInfo" class="file-info" style="display: none;"></div>
                 </div>
 
-                <!-- Output Filename -->
-                <div class="form-group">
-                    <label for="outputFilename">📝 Output Filename</label>
-                    <input type="text" id="outputFilename" 
-                           value="generated-document.docx" 
-                           style="width: 100%; padding: 15px; border: 2px solid #ddd; border-radius: 10px;">
-                    <div class="help-text">Name for the generated document</div>
+                <!-- Data Upload -->
+                <div class="upload-box" id="dataUpload">
+                    <div class="upload-icon">💾</div>
+                    <h3>Upload Data</h3>
+                    <p>Drop your .json data file here or click to browse</p>
+                    <button type="button" class="upload-btn" onclick="document.getElementById('dataFile').click()">
+                        Choose Data File
+                    </button>
+                    <input type="file" id="dataFile" class="file-input" accept=".json" />
+                    <div id="dataInfo" class="file-info" style="display: none;"></div>
                 </div>
             </div>
 
-            <!-- JSON Data -->
-            <div class="form-group">
-                <label for="jsonData">📊 JSON Data</label>
-                <textarea id="jsonData" placeholder="Enter your JSON data here..." required>{
-  "name": "John Doe",
-  "company": "TechCorp Solutions",
-  "date": "2024-01-15",
-  "amount": 1500,
+            <!-- JSON Editor Section -->
+            <div class="json-editor-section">
+                <h3>📝 Or Edit JSON Data Directly</h3>
+                <textarea id="jsonEditor" class="json-editor" placeholder="Paste your JSON data here or upload a JSON file above...">
+{
+  "company": {
+    "name": "TechCorp Solutions",
+    "email": "info@techcorp.com"
+  },
+  "customer": {
+    "name": "Acme Corporation"
+  },
   "items": [
     {
       "description": "Web Development",
       "quantity": 40,
-      "price": 150,
-      "total": 6000
-    },
-    {
-      "description": "Consulting",
-      "quantity": 10,
-      "price": 100,
-      "total": 1000
+      "price": 150.00,
+      "total": 6000.00
     }
   ],
-  "total": 7000
-}</textarea>
-                <div class="help-text">
-                    Enter JSON data that matches your template variables. 
-                    <span class="sample-link" onclick="loadNepaliSample()">Load Nepali loan sample</span> |
-                    <span class="sample-link" onclick="loadInvoiceSample()">Load invoice sample</span>
-                </div>
+  "totals": {
+    "subtotal": 6000.00,
+    "tax": 480.00,
+    "total": 6480.00
+  }
+}
+                </textarea>
             </div>
 
-            <!-- Generate Button -->
-            <button type="submit" class="btn" id="generateBtn">
-                🚀 Generate Document
-            </button>
-        </form>
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button id="analyzeBtn" class="btn btn-secondary" disabled>
+                    🔍 Analyze Template
+                </button>
+                <button id="validateBtn" class="btn btn-secondary" disabled>
+                    ✅ Validate Data
+                </button>
+                <button id="generateBtn" class="btn btn-primary" disabled>
+                    🚀 Generate Document
+                </button>
+            </div>
 
-        <!-- Loading Indicator -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <div>Generating your document...</div>
-        </div>
+            <!-- Progress Bar -->
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
 
-        <!-- Results -->
-        <div class="result" id="result">
-            <div id="resultContent"></div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p>Powered by DOCX Template Engine API | Support for Nepali Unicode and complex templates</p>
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section">
+                <div class="result-header">
+                    <h3 class="result-title">📊 Results</h3>
+                </div>
+                <div id="resultContent" class="result-content">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:3000';
-        
-        // Check API status on load
-        document.addEventListener('DOMContentLoaded', function() {
-            checkApiStatus();
-            setupEventListeners();
-        });
+        class DocxTemplateEngine {
+            constructor() {
+                this.templateFile = null;
+                this.dataFile = null;
+                this.initializeEventListeners();
+            }
 
-        function setupEventListeners() {
-            // File input handling
-            document.getElementById('templateFile').addEventListener('change', handleFileSelect);
-            
-            // Form submission
-            document.getElementById('documentForm').addEventListener('submit', handleFormSubmit);
-        }
-
-        async function checkApiStatus() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/health`);
-                const data = await response.json();
+            initializeEventListeners() {
+                // Template file upload
+                const templateInput = document.getElementById('templateFile');
+                const templateUpload = document.getElementById('templateUpload');
                 
-                if (data.success) {
-                    document.getElementById('statusIndicator').className = 'status-indicator status-online';
-                    document.getElementById('statusText').textContent = `API Online - ${data.service}`;
-                } else {
-                    throw new Error('API returned unsuccessful status');
-                }
-            } catch (error) {
-                document.getElementById('statusIndicator').className = 'status-indicator status-offline';
-                document.getElementById('statusText').textContent = 'API Offline - Please start the API server';
-            }
-        }
+                templateInput.addEventListener('change', (e) => this.handleTemplateFile(e.target.files[0]));
+                
+                // Data file upload
+                const dataInput = document.getElementById('dataFile');
+                const dataUpload = document.getElementById('dataUpload');
+                
+                dataInput.addEventListener('change', (e) => this.handleDataFile(e.target.files[0]));
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            const display = document.getElementById('templateDisplay');
-            
-            if (file) {
-                display.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
-                display.classList.add('has-file');
-            } else {
-                display.textContent = 'Click to select DOCX template';
-                display.classList.remove('has-file');
-            }
-        }
-
-        async function handleFormSubmit(event) {
-            event.preventDefault();
-            
-            const templateFile = document.getElementById('templateFile').files[0];
-            const jsonData = document.getElementById('jsonData').value;
-            const outputFilename = document.getElementById('outputFilename').value;
-
-            // Validation
-            if (!templateFile) {
-                showResult('error', 'Please select a DOCX template file');
-                return;
-            }
-
-            try {
-                JSON.parse(jsonData);
-            } catch (error) {
-                showResult('error', 'Invalid JSON data. Please check your JSON syntax.');
-                return;
-            }
-
-            // Show loading
-            showLoading();
-
-            try {
-                // Prepare form data
-                const formData = new FormData();
-                formData.append('template', templateFile);
-                formData.append('data', jsonData);
-                formData.append('filename', outputFilename);
-
-                // Make API request
-                const response = await fetch(`${API_BASE_URL}/api/generate`, {
-                    method: 'POST',
-                    body: formData
+                // Drag and drop for template
+                templateUpload.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    templateUpload.classList.add('dragover');
                 });
 
-                if (response.ok) {
-                    // Get the generated document
-                    const blob = await response.blob();
-                    
-                    // Create download link
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = outputFilename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
+                templateUpload.addEventListener('dragleave', () => {
+                    templateUpload.classList.remove('dragover');
+                });
 
-                    // Show success message
-                    const processingTime = response.headers.get('X-Processing-Time');
-                    const templateTags = response.headers.get('X-Template-Tags');
-                    
-                    showResult('success', `
-                        <h3>✅ Document Generated Successfully!</h3>
-                        <p><strong>File:</strong> ${outputFilename}</p>
-                        <p><strong>Size:</strong> ${(blob.size / 1024).toFixed(2)} KB</p>
-                        <p><strong>Processing Time:</strong> ${processingTime}ms</p>
-                        <p><strong>Template Tags Processed:</strong> ${templateTags}</p>
-                        <p>📥 The document has been downloaded automatically.</p>
-                    `);
-                } else {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Document generation failed');
+                templateUpload.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    templateUpload.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleTemplateFile(files[0]);
+                    }
+                });
+
+                // Drag and drop for data
+                dataUpload.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dataUpload.classList.add('dragover');
+                });
+
+                dataUpload.addEventListener('dragleave', () => {
+                    dataUpload.classList.remove('dragover');
+                });
+
+                dataUpload.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dataUpload.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.handleDataFile(files[0]);
+                    }
+                });
+
+                // Button event listeners
+                document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeTemplate());
+                document.getElementById('validateBtn').addEventListener('click', () => this.validateData());
+                document.getElementById('generateBtn').addEventListener('click', () => this.generateDocument());
+
+                // JSON editor change
+                document.getElementById('jsonEditor').addEventListener('input', () => this.updateButtonStates());
+            }
+
+            handleTemplateFile(file) {
+                if (!file) return;
+
+                if (!file.name.toLowerCase().endsWith('.docx')) {
+                    this.showAlert('Please select a .docx file', 'error');
+                    return;
                 }
 
-            } catch (error) {
-                showResult('error', `
-                    <h3>❌ Generation Failed</h3>
-                    <p><strong>Error:</strong> ${error.message}</p>
-                    <p>Please check your template file and JSON data, then try again.</p>
-                `);
+                this.templateFile = file;
+                
+                const templateUpload = document.getElementById('templateUpload');
+                const templateInfo = document.getElementById('templateInfo');
+                
+                templateUpload.classList.add('has-file');
+                templateInfo.innerHTML = `
+                    <strong>${file.name}</strong><br>
+                    Size: ${this.formatFileSize(file.size)}<br>
+                    Type: ${file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+                `;
+                templateInfo.style.display = 'block';
+
+                this.updateButtonStates();
+            }
+
+            handleDataFile(file) {
+                if (!file) return;
+
+                if (!file.name.toLowerCase().endsWith('.json')) {
+                    this.showAlert('Please select a .json file', 'error');
+                    return;
+                }
+
+                this.dataFile = file;
+
+                const dataUpload = document.getElementById('dataUpload');
+                const dataInfo = document.getElementById('dataInfo');
+                
+                dataUpload.classList.add('has-file');
+                dataInfo.innerHTML = `
+                    <strong>${file.name}</strong><br>
+                    Size: ${this.formatFileSize(file.size)}<br>
+                    Type: ${file.type || 'application/json'}
+                `;
+                dataInfo.style.display = 'block';
+
+                // Read and populate JSON editor
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const jsonData = JSON.parse(e.target.result);
+                        document.getElementById('jsonEditor').value = JSON.stringify(jsonData, null, 2);
+                        this.updateButtonStates();
+                    } catch (error) {
+                        this.showAlert('Invalid JSON file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            updateButtonStates() {
+                const hasTemplate = this.templateFile !== null;
+                const hasData = this.dataFile !== null || this.isValidJson(document.getElementById('jsonEditor').value);
+
+                document.getElementById('analyzeBtn').disabled = !hasTemplate;
+                document.getElementById('validateBtn').disabled = !hasTemplate || !hasData;
+                document.getElementById('generateBtn').disabled = !hasTemplate || !hasData;
+            }
+
+            isValidJson(jsonString) {
+                try {
+                    JSON.parse(jsonString);
+                    return jsonString.trim().length > 0;
+                } catch {
+                    return false;
+                }
+            }
+
+            async analyzeTemplate() {
+                if (!this.templateFile) return;
+
+                this.showLoading('Analyzing template...');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('template', this.templateFile);
+
+                    const response = await fetch('/api/analyze-template', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showTemplateAnalysis(result.data);
+                    } else {
+                        this.showAlert(result.error, 'error');
+                    }
+                } catch (error) {
+                    this.showAlert('Failed to analyze template: ' + error.message, 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async validateData() {
+                if (!this.templateFile) return;
+
+                this.showLoading('Validating data...');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('template', this.templateFile);
+
+                    const jsonData = document.getElementById('jsonEditor').value;
+                    if (this.dataFile) {
+                        formData.append('data', this.dataFile);
+                    } else {
+                        formData.append('jsonData', jsonData);
+                    }
+
+                    const response = await fetch('/api/validate', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showValidationResults(result.data);
+                    } else {
+                        this.showAlert(result.error, 'error');
+                    }
+                } catch (error) {
+                    this.showAlert('Failed to validate data: ' + error.message, 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async generateDocument() {
+                if (!this.templateFile) return;
+
+                this.showLoading('Generating document...');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('template', this.templateFile);
+
+                    const jsonData = document.getElementById('jsonEditor').value;
+                    if (this.dataFile) {
+                        formData.append('data', this.dataFile);
+                    } else {
+                        formData.append('jsonData', jsonData);
+                    }
+
+                    const response = await fetch('/api/generate', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        // Get metadata from headers
+                        const metadata = response.headers.get('X-Generation-Metadata');
+                        
+                        // Create blob and download
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `generated-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.docx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+
+                        // Show success message with metadata
+                        let successMessage = 'Document generated successfully!';
+                        if (metadata) {
+                            const meta = JSON.parse(metadata);
+                            successMessage += ` (${meta.templateTags} tags processed in ${meta.processingTime}ms)`;
+                        }
+                        
+                        this.showAlert(successMessage, 'success');
+                        
+                        // Show generation results
+                        if (metadata) {
+                            this.showGenerationResults(JSON.parse(metadata));
+                        }
+                    } else {
+                        const errorResult = await response.json();
+                        this.showAlert(errorResult.error || 'Failed to generate document', 'error');
+                    }
+                } catch (error) {
+                    this.showAlert('Failed to generate document: ' + error.message, 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            showTemplateAnalysis(data) {
+                const resultSection = document.getElementById('resultSection');
+                const resultContent = document.getElementById('resultContent');
+
+                resultContent.innerHTML = `
+                    <h4>📊 Template Analysis</h4>
+                    <div class="template-analysis">
+                        <div class="stat-card">
+                            <div class="stat-value">${data.stats.totalTags}</div>
+                            <div class="stat-label">Total Tags</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.stats.tagsByType.simple || 0}</div>
+                            <div class="stat-label">Simple Tags</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.stats.tagsByType.table || 0}</div>
+                            <div class="stat-label">Table Tags</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.stats.tagsByType.image || 0}</div>
+                            <div class="stat-label">Image Tags</div>
+                        </div>
+                    </div>
+                    
+                    <h4>🏷️ Found Template Tags</h4>
+                    <div class="tags-list">
+                        ${data.tags.map(tag => `
+                            <div class="tag-item">
+                                <strong>{${tag.path}}</strong> 
+                                <span style="color: #666;">[${tag.type}]</span>
+                                ${tag.formatters.length > 0 ? `<br><small>Formatters: ${tag.formatters.join(', ')}</small>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <h4>📋 Required Data Paths</h4>
+                    <div class="tags-list">
+                        ${data.requiredData.map(path => `
+                            <div class="tag-item" style="border-left-color: #10b981;">
+                                ${path}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                resultSection.classList.add('show');
+            }
+
+            showValidationResults(data) {
+                const resultSection = document.getElementById('resultSection');
+                const resultContent = document.getElementById('resultContent');
+
+                const statusColor = data.isValid ? '#10b981' : '#ef4444';
+                const statusIcon = data.isValid ? '✅' : '❌';
+
+                resultContent.innerHTML = `
+                    <h4>${statusIcon} Data Validation Results</h4>
+                    <div class="alert ${data.isValid ? 'alert-success' : 'alert-error'}">
+                        <strong>Status:</strong> ${data.isValid ? 'Valid' : 'Invalid'}
+                        ${data.errors.length > 0 ? `<br><strong>Errors:</strong> ${data.errors.length}` : ''}
+                        ${data.warnings.length > 0 ? `<br><strong>Warnings:</strong> ${data.warnings.length}` : ''}
+                    </div>
+                    
+                    ${data.errors.length > 0 ? `
+                        <h4>❌ Errors</h4>
+                        <div class="tags-list">
+                            ${data.errors.map(error => `
+                                <div class="tag-item" style="border-left-color: #ef4444;">
+                                    ${error}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.warnings.length > 0 ? `
+                        <h4>⚠️ Warnings</h4>
+                        <div class="tags-list">
+                            ${data.warnings.map(warning => `
+                                <div class="tag-item" style="border-left-color: #f59e0b;">
+                                    ${warning}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+
+                resultSection.classList.add('show');
+            }
+
+            showGenerationResults(metadata) {
+                const resultSection = document.getElementById('resultSection');
+                const resultContent = document.getElementById('resultContent');
+
+                resultContent.innerHTML = `
+                    <h4>🚀 Document Generation Complete</h4>
+                    <div class="alert alert-success">
+                        Document generated successfully!
+                    </div>
+                    
+                    <h4>📊 Generation Statistics</h4>
+                    <div class="template-analysis">
+                        <div class="stat-card">
+                            <div class="stat-value">${metadata.templateTags}</div>
+                            <div class="stat-label">Tags Processed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${metadata.processingTime}</div>
+                            <div class="stat-label">Processing Time (ms)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${metadata.outputFormat.toUpperCase()}</div>
+                            <div class="stat-label">Output Format</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${metadata.warnings ? metadata.warnings.length : 0}</div>
+                            <div class="stat-label">Warnings</div>
+                        </div>
+                    </div>
+                    
+                    ${metadata.warnings && metadata.warnings.length > 0 ? `
+                        <h4>⚠️ Warnings</h4>
+                        <div class="tags-list">
+                            ${metadata.warnings.map(warning => `
+                                <div class="tag-item" style="border-left-color: #f59e0b;">
+                                    ${warning}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+
+                resultSection.classList.add('show');
+            }
+
+            showLoading(message) {
+                const resultSection = document.getElementById('resultSection');
+                const resultContent = document.getElementById('resultContent');
+
+                resultContent.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>${message}</p>
+                    </div>
+                `;
+
+                resultSection.classList.add('show');
+
+                // Show progress bar
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                progressBar.style.display = 'block';
+                progressFill.style.width = '30%';
+                
+                setTimeout(() => {
+                    progressFill.style.width = '60%';
+                }, 500);
+                
+                setTimeout(() => {
+                    progressFill.style.width = '90%';
+                }, 1000);
+            }
+
+            hideLoading() {
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                
+                progressFill.style.width = '100%';
+                
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 300);
+            }
+
+            showAlert(message, type = 'info') {
+                // Remove existing alerts
+                const existingAlerts = document.querySelectorAll('.alert');
+                existingAlerts.forEach(alert => {
+                    if (alert.parentNode && !alert.parentNode.id === 'resultContent') {
+                        alert.remove();
+                    }
+                });
+
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${type}`;
+                alert.textContent = message;
+
+                const mainContent = document.querySelector('.main-content');
+                mainContent.insertBefore(alert, mainContent.firstChild);
+
+                // Auto-remove success and warning alerts after 5 seconds
+                if (type === 'success' || type === 'warning') {
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.remove();
+                        }
+                    }, 5000);
+                }
+            }
+
+            formatFileSize(bytes) {
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                if (bytes === 0) return '0 Bytes';
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
             }
         }
 
-        function showLoading() {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('result').style.display = 'none';
-            document.getElementById('generateBtn').disabled = true;
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('generateBtn').disabled = false;
-        }
-
-        function showResult(type, content) {
-            hideLoading();
-            const result = document.getElementById('result');
-            result.className = `result ${type}`;
-            result.style.display = 'block';
-            document.getElementById('resultContent').innerHTML = content;
-        }
-
-        // Sample data functions
-        function loadNepaliSample() {
-            const nepaliSample = {
-                "bank": {
-                    "nameNepali": "नेपाल स्टेट बैंक लिमिटेड",
-                    "nameEnglish": "Nepal State Bank Limited",
-                    "address": {
-                        "nepali": "न्यू रोड, काठमाडौं, नेपाल"
-                    },
-                    "phone": "+977-1-4123456",
-                    "email": "info@nepalstatebank.com.np"
-                },
-                "loan": {
-                    "agreementNumber": "NSB/HL/2081/001234",
-                    "amount": 5000000,
-                    "amountInWords": "पचास लाख रुपैयाँ मात्र",
-                    "interestRate": 0.115,
-                    "monthlyEmi": 56234
-                },
-                "borrower": {
-                    "primary": {
-                        "nameNepali": "श्री रामेश्वर प्रसाद अधिकारी",
-                        "citizenshipNumber": "16-02-78-12345",
-                        "phone": "+977-9841234567",
-                        "monthlyIncome": 85000
-                    }
-                },
-                "property": {
-                    "type": "आवासीय घर जग्गा",
-                    "address": {
-                        "nepali": "टोखा नगरपालिका वडा नं. ४, काठमाडौं"
-                    },
-                    "estimatedValue": 8000000
-                }
-            };
-            
-            document.getElementById('jsonData').value = JSON.stringify(nepaliSample, null, 2);
-        }
-
-        function loadInvoiceSample() {
-            const invoiceSample = {
-                "invoice": {
-                    "number": "INV-2024-001",
-                    "date": "2024-01-15"
-                },
-                "company": {
-                    "name": "TechCorp Solutions",
-                    "email": "billing@techcorp.com"
-                },
-                "customer": {
-                    "name": "John Doe",
-                    "email": "john@example.com"
-                },
-                "items": [
-                    {
-                        "description": "Web Development",
-                        "quantity": 40,
-                        "price": 150,
-                        "total": 6000
-                    },
-                    {
-                        "description": "Consulting",
-                        "quantity": 10,
-                        "price": 200,
-                        "total": 2000
-                    }
-                ],
-                "totals": {
-                    "subtotal": 8000,
-                    "tax": 640,
-                    "total": 8640
-                },
-                "payment": {
-                    "status": "pending"
-                }
-            };
-            
-            document.getElementById('jsonData').value = JSON.stringify(invoiceSample, null, 2);
-        }
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new DocxTemplateEngine();
+        });
     </script>
 </body>
 </html>
