@@ -11,7 +11,7 @@ import { ZipUtils } from '../utils/zip';
 import { generateId } from '../utils/common';
 
 export class TemplateParser {
-/**
+  /**
    * Parse DOCX template and extract all template tags - FIXED VERSION
    */
   async parseTemplate(docxBuffer: Buffer): Promise<ParsedTemplate> {
@@ -80,114 +80,12 @@ export class TemplateParser {
       };
 
     } catch (error) {
-      throw new Error(`Failed to parse template: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
-
-
-  /**
-   * Preprocess split template tags in the extracted DOCX files
-   */
-  private async preprocessSplitTemplateTags(extractedFiles: ExtractedFiles): Promise<void> {
-    console.log('🔧 Preprocessing split template tags...');
-    
-    // Process the main document
-    const documentXML = ZipUtils.getFileAsString(extractedFiles, 'word/document.xml');
-    const fixedXML = this.fixSplitTemplateTags(documentXML);
-    
-    if (fixedXML !== documentXML) {
-      ZipUtils.setFileFromString(extractedFiles, 'word/document.xml', fixedXML);
-      console.log('✅ Updated word/document.xml with merged template tags');
-    }
-
-    // Also check headers/footers if they exist
-    const headerFooterFiles = ['word/header1.xml', 'word/footer1.xml', 'word/header2.xml', 'word/footer2.xml'];
-    
-    for (const fileName of headerFooterFiles) {
-      if (ZipUtils.fileExists(extractedFiles, fileName)) {
-        const originalXML = ZipUtils.getFileAsString(extractedFiles, fileName);
-        const fixedXML = this.fixSplitTemplateTags(originalXML);
-        
-        if (fixedXML !== originalXML) {
-          ZipUtils.setFileFromString(extractedFiles, fileName, fixedXML);
-          console.log(`✅ Updated ${fileName} with merged template tags`);
-        }
-      }
+      throw new Error(`Failed to parse template: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Fix split template tags by merging XML elements
-   */
-  private fixSplitTemplateTags(xmlContent: string): string {
-    let fixedXML = xmlContent;
-    let fixCount = 0;
-    
-    console.log('  🔍 Searching for split template tags...');
-    
-    // Step 1: Handle the most common split pattern
-    // Pattern: {start...}</w:t></w:r><w:r><w:rPr></w:rPr><w:t>...end}
-    const simpleSplitPattern = /(\{[^}]*)<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>([^}]*\})/g;
-    
-    let previousXML = '';
-    let iterations = 0;
-    const maxIterations = 10; // Prevent infinite loops
-    
-    while (previousXML !== fixedXML && iterations < maxIterations) {
-      previousXML = fixedXML;
-      iterations++;
-      
-      fixedXML = fixedXML.replace(simpleSplitPattern, (match, start, end) => {
-        fixCount++;
-        console.log(`    Fixed split ${fixCount}: ${start.substring(0, 40)}...${end.substring(-20)}`);
-        return start + end;
-      });
-    }
-    
-    // Step 2: Handle complex multi-element splits
-    // Find template tags that still contain XML elements
-    const complexSplitPattern = /(\{[^{}]*(?:<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>[^{}]*)*\})/g;
-    
-    fixedXML = fixedXML.replace(complexSplitPattern, (match) => {
-      // Check if this match contains Word XML elements
-      if (match.includes('<w:t>') || match.includes('</w:t>')) {
-        const cleaned = match.replace(/<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>/g, '');
-        if (cleaned !== match) {
-          fixCount++;
-          console.log(`    Complex fix ${fixCount}: Removed XML from ${match.length} char template tag`);
-          return cleaned;
-        }
-      }
-      return match;
-    });
-    
-    // Step 3: Fix encoded characters
-    const originalLength = fixedXML.length;
-    fixedXML = fixedXML.replace(/&apos;/g, "'");
-    fixedXML = fixedXML.replace(/&quot;/g, '"');
-    fixedXML = fixedXML.replace(/&amp;/g, '&');
-    
-    if (fixedXML.length !== originalLength) {
-      console.log('    Fixed encoded characters (&apos; → \', &quot; → ", etc.)');
-    }
-    
-    // Step 4: Clean up any remaining XML attributes in template tags
-    const xmlAttributePattern = /(\{[^}]*)\s+xml:space="preserve"([^}]*\})/g;
-    fixedXML = fixedXML.replace(xmlAttributePattern, (match, start, end) => {
-      console.log('    Removed xml:space attribute from template tag');
-      return start + end;
-    });
-    
-    console.log(`  ✅ Preprocessing complete: ${fixCount} template tags fixed`);
-    return fixedXML;
-  }
-
-  // Keep all your existing methods unchanged...
-  // (extractRelationships, findAllTemplateTags, etc.)
-
-  /**
-   * Find all template tags in XML files - ENHANCED VERSION
+   * FIXED: Find all template tags in XML files
    */
   private async findAllTemplateTags(xmlFiles: Map<string, any>): Promise<TemplateTag[]> {
     console.log('🔍 Finding all template tags...');
@@ -197,27 +95,37 @@ export class TemplateParser {
       if (fileName.includes('document.xml') || fileName.includes('header') || fileName.includes('footer')) {
         console.log(`  Searching in ${fileName}...`);
         
-        const tags = XMLUtils.findTemplateTagsInXML(xmlDocument.parsed, fileName);
+        // Use XMLUtils to find text nodes containing template tags
+        const foundTextNodes = XMLUtils.findTemplateTagsInXML(xmlDocument.parsed, fileName);
         
-        for (const tagData of tags) {
-          const templateTag: TemplateTag = {
-            id: generateId(),
-            fullTag: tagData.value,
-            path: this.extractDataPath(tagData.value),
-            formatters: this.extractFormatters(tagData.value),
-            xmlElement: tagData.parent,
-            formattingContext: this.createDefaultFormattingContext(),
-            position: {
-              xmlPath: tagData.path,
-              startIndex: 0,
-              endIndex: tagData.value.length,
-              parentElement: fileName
-            },
-            type: this.determineTagType(this.extractDataPath(tagData.value), this.extractFormatters(tagData.value))
-          };
+        for (const textNode of foundTextNodes) {
+          console.log(`    🔍 Found text node: "${textNode.value}"`);
+          
+          // CRITICAL FIX: Extract individual template tags from the text
+          const extractedTags = XMLUtils.extractTemplateTags(textNode.value);
+          
+          for (const extractedTag of extractedTags) {
+            console.log(`      ✅ Extracted tag: "${extractedTag.fullTag}" -> path: "${extractedTag.path}"`);
+            
+            const templateTag: TemplateTag = {
+              id: generateId(),
+              fullTag: extractedTag.fullTag,
+              path: extractedTag.path,
+              formatters: extractedTag.formatters,
+              xmlElement: textNode.parent,
+              formattingContext: this.createDefaultFormattingContext(),
+              position: {
+                xmlPath: textNode.path,
+                startIndex: extractedTag.startIndex,
+                endIndex: extractedTag.endIndex,
+                parentElement: fileName
+              },
+              type: this.determineTagType(extractedTag.path, extractedTag.formatters)
+            };
 
-          allTags.push(templateTag);
-          console.log(`    ✅ Found: ${templateTag.fullTag} [${templateTag.type}] formatters: [${templateTag.formatters.join(', ')}]`);
+            allTags.push(templateTag);
+            console.log(`    ✅ Found: ${templateTag.path} [${templateTag.type}] formatters: [${templateTag.formatters.join(', ')}]`);
+          }
         }
       }
     }
@@ -227,24 +135,101 @@ export class TemplateParser {
   }
 
   /**
-   * Extract data path from template tag
+   * Preprocess XML content to fix split template tags
    */
-  private extractDataPath(tagContent: string): string {
-    // Remove braces and get the path part (before first |)
-    const content = tagContent.replace(/[{}]/g, '').trim();
-    const parts = content.split('|');
-    return parts[0].trim();
+  private async preprocessSplitTemplateTags(extractedFiles: ExtractedFiles): Promise<void> {
+    console.log('🔧 Preprocessing split template tags...');
+    console.log('  🔍 Searching for split template tags...');
+
+    let totalFixed = 0;
+
+    // Process main document
+    if (ZipUtils.fileExists(extractedFiles, 'word/document.xml')) {
+      const documentXml = ZipUtils.getFileAsString(extractedFiles, 'word/document.xml');
+      const fixedXml = this.fixSplitTemplateTags(documentXml);
+      
+      if (fixedXml !== documentXml) {
+        const fixCount = (fixedXml.match(/\{[^}]+\}/g) || []).length - (documentXml.match(/\{[^}]+\}/g) || []).length;
+        totalFixed += Math.abs(fixCount);
+        ZipUtils.setFileFromString(extractedFiles, 'word/document.xml', fixedXml);
+      }
+    }
+
+    // Process headers and footers
+    const headerFooterFiles = Object.keys(extractedFiles).filter(name => 
+      name.includes('header') || name.includes('footer')
+    );
+
+    for (const fileName of headerFooterFiles) {
+      const content = ZipUtils.getFileAsString(extractedFiles, fileName);
+      const fixedContent = this.fixSplitTemplateTags(content);
+      
+      if (fixedContent !== content) {
+        const fixCount = (fixedContent.match(/\{[^}]+\}/g) || []).length - (content.match(/\{[^}]+\}/g) || []).length;
+        totalFixed += Math.abs(fixCount);
+        ZipUtils.setFileFromString(extractedFiles, fileName, fixedContent);
+      }
+    }
+
+    console.log(`  ✅ Preprocessing complete: ${totalFixed} template tags fixed`);
   }
 
   /**
-   * Extract formatters from template tag
+   * Fix split template tags in XML content
    */
-  private extractFormatters(tagContent: string): string[] {
-    const content = tagContent.replace(/[{}]/g, '').trim();
-    const parts = content.split('|');
-    return parts.slice(1).map(f => f.trim()).filter(f => f.length > 0);
+  private fixSplitTemplateTags(xmlContent: string): string {
+    let fixedXML = xmlContent;
+    let fixCount = 0;
+
+    // Pattern 1: Basic split across runs
+    // {something</w:t></w:r><w:r><w:rPr></w:rPr><w:t>else}
+    const basicSplitPattern = /(\{[^}]*)<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>([^}]*\})/g;
+    
+    let previousLength = 0;
+    while (fixedXML.length !== previousLength) {
+      previousLength = fixedXML.length;
+      
+      fixedXML = fixedXML.replace(basicSplitPattern, (match, start, end) => {
+        fixCount++;
+        console.log(`    Fixed split tag ${fixCount}: ${start}...${end}`);
+        return start + end;
+      });
+    }
+
+    // Pattern 2: Complex splits with multiple fragments
+    // Handle cases where template tags are split across multiple w:t elements
+    const complexSplitPattern = /(\{[^{}]*?)(<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>)([^{}]*?\})/g;
+    
+    fixedXML = fixedXML.replace(complexSplitPattern, (match, start, middle, end) => {
+      fixCount++;
+      console.log(`    Fixed complex split tag ${fixCount}: ${start}...${end}`);
+      return start + end;
+    });
+
+    // Pattern 3: Remove XML attributes from within template tags
+    const xmlAttributePattern = /(\{[^}]*)\s+xml:space="preserve"([^}]*\})/g;
+    fixedXML = fixedXML.replace(xmlAttributePattern, (match, start, end) => {
+      console.log('    Removed xml:space attribute from template tag');
+      return start + end;
+    });
+
+    return fixedXML;
   }
 
+  /**
+   * Determine the type of template tag
+   */
+  private determineTagType(path: string, formatters: string[]): 'simple' | 'table' | 'image' | 'chart' | 'html' {
+    // Check formatters for special types
+    if (formatters.includes('image')) return 'image';
+    if (formatters.some(f => f.startsWith('chart'))) return 'chart';
+    if (formatters.includes('html')) return 'html';
+    if (formatters.includes('table') || path.includes('[') || path.includes('items') || path.includes('rows')) {
+      return 'table';
+    }
+    
+    return 'simple';
+  }
 
   /**
    * Extract relationships from _rels files
@@ -298,74 +283,6 @@ export class TemplateParser {
     }
 
     return relationships;
-  }
-
-  // /**
-  //  * Find all template tags in XML files
-  //  */
-  // private async findAllTemplateTags(xmlFiles: Map<string, any>): Promise<TemplateTag[]> {
-  //   const templateTags: TemplateTag[] = [];
-
-  //   for (const [fileName, xmlDoc] of xmlFiles) {
-  //     if (fileName.includes('document.xml') || 
-  //         fileName.includes('header') || 
-  //         fileName.includes('footer')) {
-        
-  //       const tags = this.findTemplateTagsInDocument(xmlDoc.parsed, fileName);
-  //       templateTags.push(...tags);
-  //     }
-  //   }
-
-  //   return templateTags;
-  // }
-
-  /**
-   * Find template tags in a specific document
-   */
-  private findTemplateTagsInDocument(xmlObj: any, fileName: string): TemplateTag[] {
-    const tags: TemplateTag[] = [];
-    const foundTags = XMLUtils.findTemplateTagsInXML(xmlObj);
-
-    for (const foundTag of foundTags) {
-      const extractedTags = XMLUtils.extractTemplateTags(foundTag.value);
-      
-      for (const extractedTag of extractedTags) {
-        const tag: TemplateTag = {
-          id: generateId(),
-          fullTag: extractedTag.fullTag,
-          path: extractedTag.path,
-          formatters: extractedTag.formatters,
-          xmlElement: foundTag.parent,
-          formattingContext: this.createDefaultFormattingContext(),
-          position: {
-            xmlPath: foundTag.path,
-            startIndex: extractedTag.startIndex,
-            endIndex: extractedTag.endIndex,
-            parentElement: fileName
-          },
-          type: this.determineTagType(extractedTag.path, extractedTag.formatters)
-        };
-
-        tags.push(tag);
-      }
-    }
-
-    return tags;
-  }
-
-  /**
-   * Determine the type of template tag
-   */
-  private determineTagType(path: string, formatters: string[]): 'simple' | 'table' | 'image' | 'chart' | 'html' {
-    // Check formatters for special types
-    if (formatters.includes('image')) return 'image';
-    if (formatters.some(f => f.startsWith('chart'))) return 'chart';
-    if (formatters.includes('html')) return 'html';
-    if (formatters.includes('table') || path.includes('[') || path.includes('items') || path.includes('rows')) {
-      return 'table';
-    }
-    
-    return 'simple';
   }
 
   /**
@@ -482,23 +399,16 @@ export class TemplateParser {
 
     // Validate template tags
     for (const tag of parsedTemplate.templateTags) {
-      // Check for malformed paths
-      if (!tag.path || tag.path.trim() === '') {
-        errors.push(`Template tag ${tag.fullTag} has empty path`);
+      // Check for valid data paths
+      if (!tag.path || !tag.path.trim()) {
+        errors.push(`Template tag has empty path: ${tag.fullTag}`);
       }
 
-      // Check for unknown formatters
+      // Check for potentially problematic formatters
       for (const formatter of tag.formatters) {
-        const formatterName = formatter.split('(')[0];
-        // This would check against available formatters
-        // if (!BuiltInFormatters.hasFormatter(formatterName)) {
-        //   warnings.push(`Unknown formatter: ${formatterName} in tag ${tag.fullTag}`);
-        // }
-      }
-
-      // Check for complex table tags
-      if (tag.type === 'table' && !tag.path.includes('[')) {
-        warnings.push(`Table tag ${tag.fullTag} may need array syntax like 'items[i].field'`);
+        if (formatter.includes('<') || formatter.includes('>')) {
+          warnings.push(`Template tag contains XML-like content in formatter: ${tag.fullTag}`);
+        }
       }
     }
 
@@ -512,36 +422,28 @@ export class TemplateParser {
   /**
    * Get template statistics
    */
-  getTemplateStats(parsedTemplate: ParsedTemplate): {
-    totalTags: number;
-    tagsByType: { [type: string]: number };
-    filesWithTags: string[];
-    hasImages: boolean;
-    hasCharts: boolean;
-    hasTables: boolean;
-  } {
-    const stats = {
-      totalTags: parsedTemplate.templateTags.length,
-      tagsByType: {} as { [type: string]: number },
-      filesWithTags: [] as string[],
-      hasImages: false,
-      hasCharts: false,
-      hasTables: false
-    };
-
-    // Count tags by type
+  getTemplateStats(parsedTemplate: ParsedTemplate): any {
+    const tagTypes = new Map<string, number>();
+    const formatterUsage = new Map<string, number>();
+    
     for (const tag of parsedTemplate.templateTags) {
-      stats.tagsByType[tag.type] = (stats.tagsByType[tag.type] || 0) + 1;
+      // Count tag types
+      tagTypes.set(tag.type, (tagTypes.get(tag.type) || 0) + 1);
       
-      if (tag.type === 'image') stats.hasImages = true;
-      if (tag.type === 'chart') stats.hasCharts = true;
-      if (tag.type === 'table') stats.hasTables = true;
+      // Count formatter usage
+      for (const formatter of tag.formatters) {
+        const formatterName = formatter.split('(')[0];
+        formatterUsage.set(formatterName, (formatterUsage.get(formatterName) || 0) + 1);
+      }
     }
 
-    // Get unique files with tags
-    const filesSet = new Set(parsedTemplate.templateTags.map((tag: TemplateTag) => tag.position.parentElement));
-    stats.filesWithTags = Array.from(filesSet) as string[];
-
-    return stats;
+    return {
+      totalTags: parsedTemplate.templateTags.length,
+      tagTypeBreakdown: Object.fromEntries(tagTypes),
+      formatterUsage: Object.fromEntries(formatterUsage),
+      xmlFiles: parsedTemplate.xmlFiles.size,
+      mediaFiles: parsedTemplate.mediaFiles.size,
+      relationships: parsedTemplate.relationships.length
+    };
   }
 }

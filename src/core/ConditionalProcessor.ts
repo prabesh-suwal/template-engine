@@ -15,61 +15,97 @@ export class ConditionalProcessor {
    */
   async processConditionalBlocks(
     xmlContent: string,
-    processedData: ProcessedData
+    processedData: ProcessedData,
+    rawData?: any  // Add access to raw JSON data
   ): Promise<string> {
-    console.log('🔀 Processing conditional blocks...');
+    console.log('🔀 ConditionalProcessor - Processing conditional blocks...');
     
     // Process nested conditional blocks from innermost to outermost
     let processedContent = xmlContent;
     
     // Process IF blocks
-    processedContent = await this.processIfBlocks(processedContent, processedData);
+    processedContent = await this.processIfBlocks(processedContent, processedData, rawData);
     
     // Process LOOP-IF blocks (conditional loops)
-    processedContent = await this.processConditionalLoops(processedContent, processedData);
+    processedContent = await this.processConditionalLoops(processedContent, processedData, rawData);
     
     // Process SWITCH blocks
-    processedContent = await this.processSwitchBlocks(processedContent, processedData);
+    processedContent = await this.processSwitchBlocks(processedContent, processedData, rawData);
     
     return processedContent;
   }
 
   /**
-   * Process IF/ELSEIF/ELSE blocks
-   * Syntax: {#if condition}content{/if}
-   *         {#if condition}content{#elseif condition2}content2{#else}content3{/if}
+   * Process IF/ELSEIF/ELSE blocks - FIXED with XML entity decoding
    */
   private async processIfBlocks(
     xmlContent: string,
-    processedData: ProcessedData
+    processedData: ProcessedData,
+    rawData?: any
   ): Promise<string> {
     const ifBlockRegex = /\{#if\s+([^}]+)\}([\s\S]*?)\{\/if\}/g;
     
     return xmlContent.replace(ifBlockRegex, (match, condition, content) => {
       try {
+        // CRITICAL: Decode XML entities in the condition
+        const decodedCondition = this.decodeXMLEntities(condition);
+        console.log(`  🔍 Processing IF block with condition: "${condition}"`);
+        console.log(`  🔧 Decoded condition: "${decodedCondition}"`);
+        
         // Parse the block content for elseif/else
         const blockParts = this.parseIfBlock(content);
+        console.log(`    Found ${blockParts.elseifParts.length} elseif parts and ${blockParts.elseContent ? 1 : 0} else part`);
         
-        // Evaluate main condition
-        if (this.evaluateCondition(condition, processedData)) {
+        // Evaluate main condition with decoded condition
+        const mainResult = this.evaluateCondition(decodedCondition, processedData, rawData);
+        console.log(`    Main condition result: ${mainResult}`);
+        
+        if (mainResult) {
+          console.log(`    ✅ Using IF content`);
           return blockParts.ifContent;
         }
         
         // Check elseif conditions
-        for (const elseifPart of blockParts.elseifParts) {
-          if (this.evaluateCondition(elseifPart.condition, processedData)) {
+        for (let i = 0; i < blockParts.elseifParts.length; i++) {
+          const elseifPart = blockParts.elseifParts[i];
+          const decodedElseifCondition = this.decodeXMLEntities(elseifPart.condition);
+          console.log(`    🔧 Decoded ELSEIF condition: "${decodedElseifCondition}"`);
+          
+          const elseifResult = this.evaluateCondition(decodedElseifCondition, processedData, rawData);
+          console.log(`    ELSEIF ${i + 1} condition "${decodedElseifCondition}": ${elseifResult}`);
+          
+          if (elseifResult) {
+            console.log(`    ✅ Using ELSEIF ${i + 1} content`);
             return elseifPart.content;
           }
         }
         
         // Return else content if available
-        return blockParts.elseContent || '';
+        if (blockParts.elseContent) {
+          console.log(`    ✅ Using ELSE content`);
+          return blockParts.elseContent;
+        }
         
-      } catch (error : any) {
-        console.error('Error processing IF block:', error);
+        console.log(`    ✅ No conditions matched, returning empty`);
+        return '';
+        
+      } catch (error: any) {
+        console.error('❌ Error processing IF block:', error);
         return `<!-- Error in conditional: ${error.message} -->`;
       }
     });
+  }
+
+  /**
+   * Decode XML entities - NEW METHOD
+   */
+  private decodeXMLEntities(text: string): string {
+    return text
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&'); // Do this last to avoid double-decoding
   }
 
   /**
@@ -78,13 +114,14 @@ export class ConditionalProcessor {
    */
   private async processConditionalLoops(
     xmlContent: string,
-    processedData: ProcessedData
+    processedData: ProcessedData,
+    rawData?: any
   ): Promise<string> {
     const conditionalLoopRegex = /\{#each\s+([^\s]+)\s+where\s+([^}]+)\}([\s\S]*?)\{\/each\}/g;
     
     return xmlContent.replace(conditionalLoopRegex, (match, arrayPath, condition, content) => {
       try {
-        const arrayData = this.getDataValue(arrayPath, processedData);
+        const arrayData = this.getDataValue(arrayPath, processedData, rawData);
         
         if (!Array.isArray(arrayData)) {
           return '';
@@ -92,14 +129,14 @@ export class ConditionalProcessor {
         
         const filteredItems = arrayData.filter((item, index) => {
           const itemContext = { ...item, _index: index, _item: item };
-          return this.evaluateConditionWithContext(condition, itemContext, processedData);
+          return this.evaluateConditionWithContext(condition, itemContext, processedData, rawData);
         });
         
         return filteredItems.map((item, index) => {
           return this.replaceItemPlaceholders(content, item, index);
         }).join('');
         
-      } catch (error : any) {
+      } catch (error: any) {
         console.error('Error processing conditional loop:', error);
         return `<!-- Error in conditional loop: ${error.message} -->`;
       }
@@ -116,13 +153,14 @@ export class ConditionalProcessor {
    */
   private async processSwitchBlocks(
     xmlContent: string,
-    processedData: ProcessedData
+    processedData: ProcessedData,
+    rawData?: any
   ): Promise<string> {
     const switchBlockRegex = /\{#switch\s+([^}]+)\}([\s\S]*?)\{\/switch\}/g;
     
     return xmlContent.replace(switchBlockRegex, (match, switchExpression, content) => {
       try {
-        const switchValue = this.evaluateExpression(switchExpression, processedData);
+        const switchValue = this.evaluateExpression(switchExpression, processedData, rawData);
         const cases = this.parseSwitchBlock(content);
         
         // Find matching case
@@ -135,9 +173,8 @@ export class ConditionalProcessor {
         // Return default case if no match
         return cases.defaultContent || '';
         
-      } catch (error : any) {
+      } catch (error: any) {
         console.error('Error processing SWITCH block:', error);
-        
         return `<!-- Error in switch: ${error.message} -->`;
       }
     });
@@ -147,35 +184,45 @@ export class ConditionalProcessor {
    * Evaluate complex conditions
    * Supports: ==, !=, >, <, >=, <=, &&, ||, !, contains, startsWith, endsWith
    */
-  private evaluateCondition(condition: string, processedData: ProcessedData): boolean {
+  private evaluateCondition(condition: string, processedData: ProcessedData, rawData?: any): boolean {
     try {
+      console.log(`      🔍 Evaluating condition: "${condition}"`);
+      
       // Handle complex expressions with AND/OR
       if (condition.includes('&&') || condition.includes('||')) {
-        return this.evaluateComplexCondition(condition, processedData);
+        return this.evaluateComplexCondition(condition, processedData, rawData);
       }
       
       // Handle NOT operator
       if (condition.trim().startsWith('!')) {
         const innerCondition = condition.trim().substring(1).trim();
-        return !this.evaluateCondition(innerCondition, processedData);
+        const result = !this.evaluateCondition(innerCondition, processedData, rawData);
+        console.log(`      NOT result: ${result}`);
+        return result;
       }
       
       // Parse simple condition: "data.age > 18"
       const conditionParts = this.parseSimpleCondition(condition);
       if (!conditionParts) {
         // If no operator, treat as truthiness check
-        const value = this.evaluateExpression(condition, processedData);
-        return this.isTruthy(value);
+        const value = this.evaluateExpression(condition, processedData, rawData);
+        const result = this.isTruthy(value);
+        console.log(`      Truthiness check for "${value}": ${result}`);
+        return result;
       }
       
       const { left, operator, right } = conditionParts;
-      const leftValue = this.evaluateExpression(left, processedData);
-      const rightValue = this.evaluateExpression(right, processedData);
+      const leftValue = this.evaluateExpression(left, processedData, rawData);
+      const rightValue = this.evaluateExpression(right, processedData, rawData);
       
-      return this.compareValues(leftValue, rightValue, operator);
+      console.log(`      Comparing: "${leftValue}" ${operator} "${rightValue}"`);
+      const result = this.compareValues(leftValue, rightValue, operator);
+      console.log(`      Comparison result: ${result}`);
+      
+      return result;
       
     } catch (error) {
-      console.error('Error evaluating condition:', condition, error);
+      console.error('❌ Error evaluating condition:', condition, error);
       return false;
     }
   }
@@ -183,7 +230,7 @@ export class ConditionalProcessor {
   /**
    * Evaluate complex conditions with AND/OR logic
    */
-  private evaluateComplexCondition(condition: string, processedData: ProcessedData): boolean {
+  private evaluateComplexCondition(condition: string, processedData: ProcessedData, rawData?: any): boolean {
     // Split by OR first (lower precedence)
     const orParts = condition.split('||').map(part => part.trim());
     
@@ -192,7 +239,7 @@ export class ConditionalProcessor {
       const andParts = orPart.split('&&').map(part => part.trim());
       
       const andResult = andParts.every(andPart => 
-        this.evaluateCondition(andPart, processedData)
+        this.evaluateCondition(andPart, processedData, rawData)
       );
       
       if (andResult) {
@@ -204,26 +251,57 @@ export class ConditionalProcessor {
   }
 
   /**
-   * Parse simple condition like "data.age > 18"
+   * Parse simple condition like "data.age > 18" - FIXED VERSION
    */
   private parseSimpleCondition(condition: string): {
     left: string;
     operator: string;
     right: string;
   } | null {
-    const operators = ['>=', '<=', '==', '!=', '>', '<', 'contains', 'startsWith', 'endsWith', 'in'];
+    console.log(`        📋 Parsing simple condition: "${condition}"`);
+    
+    const operators = ['==', '!=', '>=', '<=', '>', '<', 'contains', 'startsWith', 'endsWith', 'in'];
     
     for (const op of operators) {
-      const index = condition.indexOf(op);
-      if (index > 0) {
+      // More careful parsing - handle quotes properly
+      let inQuotes = false;
+      let quoteChar = '';
+      let opIndex = -1;
+      
+      for (let i = 0; i <= condition.length - op.length; i++) {
+        const char = condition[i];
+        
+        // Track quote state
+        if (!inQuotes && (char === '"' || char === "'")) {
+          inQuotes = true;
+          quoteChar = char;
+        } else if (inQuotes && char === quoteChar) {
+          inQuotes = false;
+          quoteChar = '';
+        }
+        
+        // Check for operator only when not in quotes
+        if (!inQuotes && condition.substring(i, i + op.length) === op) {
+          opIndex = i;
+          break;
+        }
+      }
+      
+      if (opIndex > 0) {
+        const left = condition.substring(0, opIndex).trim();
+        const right = condition.substring(opIndex + op.length).trim();
+        
+        console.log(`        ✅ Parsed: "${left}" ${op} "${right}"`);
+        
         return {
-          left: condition.substring(0, index).trim(),
+          left,
           operator: op,
-          right: condition.substring(index + op.length).trim()
+          right
         };
       }
     }
     
+    console.log(`        ❌ No operator found in condition`);
     return null;
   }
 
@@ -281,39 +359,43 @@ export class ConditionalProcessor {
     const elseifRegex = /\{#elseif\s+([^}]+)\}/g;
     const elseIndex = content.indexOf('{#else}');
     
-    let currentContent = content;
     const elseifParts: Array<{ condition: string; content: string }> = [];
     let match;
+    const matches = [];
+    
+    // Find all elseif matches first
+    while ((match = elseifRegex.exec(content)) !== null) {
+      matches.push({
+        condition: match[1],
+        index: match.index,
+        fullMatch: match[0]
+      });
+    }
     
     // Extract elseif parts
-    while ((match = elseifRegex.exec(content)) !== null) {
-      const condition = match[1];
-      const startIndex = match.index + match[0].length;
+    for (let i = 0; i < matches.length; i++) {
+      const currentMatch = matches[i];
+      const nextMatch = matches[i + 1];
       
-      // Find the end of this elseif block
-      const nextElseif = content.indexOf('{#elseif', startIndex);
-      const elseStart = content.indexOf('{#else}', startIndex);
-      const endIndex = Math.min(
-        nextElseif >= 0 ? nextElseif : Infinity,
-        elseStart >= 0 ? elseStart : Infinity
-      );
+      const startIndex = currentMatch.index + currentMatch.fullMatch.length;
+      let endIndex: number;
       
-      if (endIndex === Infinity) {
-        // This is the last elseif, goes to end or else
-        elseifParts.push({
-          condition,
-          content: content.substring(startIndex, elseStart >= 0 ? elseStart : content.length)
-        });
+      if (nextMatch) {
+        endIndex = nextMatch.index;
+      } else if (elseIndex >= 0 && elseIndex > startIndex) {
+        endIndex = elseIndex;
       } else {
-        elseifParts.push({
-          condition,
-          content: content.substring(startIndex, endIndex)
-        });
+        endIndex = content.length;
       }
+      
+      elseifParts.push({
+        condition: currentMatch.condition,
+        content: content.substring(startIndex, endIndex)
+      });
     }
     
     // Extract main if content and else content
-    const firstElseifIndex = content.indexOf('{#elseif');
+    const firstElseifIndex = matches.length > 0 ? matches[0].index : -1;
     const ifEndIndex = firstElseifIndex >= 0 ? firstElseifIndex : 
                       (elseIndex >= 0 ? elseIndex : content.length);
     
@@ -371,65 +453,105 @@ export class ConditionalProcessor {
   }
 
   /**
-   * Evaluate expression and get value from data
+   * Evaluate expression and get value from data - FIXED VERSION
    */
-  private evaluateExpression(expression: string, processedData: ProcessedData): any {
+  private evaluateExpression(expression: string, processedData: ProcessedData, rawData?: any): any {
     expression = expression.trim();
     
-    // Handle quoted strings
-    if ((expression.startsWith('"') && expression.endsWith('"')) ||
-        (expression.startsWith("'") && expression.endsWith("'"))) {
-      return expression.slice(1, -1);
+    console.log(`        🔍 Evaluating expression: "${expression}"`);
+    
+    // Handle quoted strings - be more careful with quote detection
+    if (expression.length >= 2) {
+      const firstChar = expression[0];
+      const lastChar = expression[expression.length - 1];
+      
+      if ((firstChar === '"' && lastChar === '"') || (firstChar === "'" && lastChar === "'")) {
+        const result = expression.slice(1, -1);
+        console.log(`        String literal: "${result}"`);
+        return result;
+      }
+      
+      // Handle double-quoted strings that might have been escaped
+      if (expression.startsWith('""') && expression.endsWith('""') && expression.length >= 4) {
+        const result = expression.slice(2, -2);
+        console.log(`        Double-quoted string literal: "${result}"`);
+        return result;
+      }
     }
     
     // Handle numbers
     if (/^-?\d+\.?\d*$/.test(expression)) {
-      return parseFloat(expression);
+      const result = parseFloat(expression);
+      console.log(`        Number literal: ${result}`);
+      return result;
     }
     
     // Handle booleans
-    if (expression === 'true') return true;
-    if (expression === 'false') return false;
+    if (expression === 'true') {
+      console.log(`        Boolean: true`);
+      return true;
+    }
+    if (expression === 'false') {
+      console.log(`        Boolean: false`);
+      return false;
+    }
     
     // Handle data paths
-    return this.getDataValue(expression, processedData);
+    const result = this.getDataValue(expression, processedData, rawData);
+    console.log(`        Data path "${expression}": ${JSON.stringify(result)}`);
+    return result;
   }
 
   /**
-   * Get value from processed data using path
+   * Get value from processed data using path - ENHANCED VERSION
    */
-  private getDataValue(path: string, processedData: ProcessedData): any {
-    // Check if it's a direct value from processed data
+  private getDataValue(path: string, processedData: ProcessedData, rawData?: any): any {
+    console.log(`          🔍 Getting data value for path: "${path}"`);
+    
+    // First try to get from processedData
     const directValue = processedData.values.get(path);
     if (directValue !== undefined) {
+      console.log(`          Found in processedData: ${JSON.stringify(directValue.value)}`);
       return directValue.value;
     }
     
-    // Try to resolve path manually
-    const pathParts = path.split('.');
-    let current: any = { data: processedData };
-    
-    for (const part of pathParts) {
-      if (current && typeof current === 'object' && part in current) {
-        current = current[part];
-      } else {
-        return undefined;
+    // If we have raw data, try to resolve the path manually
+    if (rawData) {
+      try {
+        const pathParts = path.split('.');
+        let current = rawData;
+        
+        console.log(`          Resolving path parts: [${pathParts.join(', ')}]`);
+        
+        for (const part of pathParts) {
+          if (current && typeof current === 'object' && part in current) {
+            current = current[part];
+            console.log(`            "${part}" -> ${JSON.stringify(current)}`);
+          } else {
+            console.log(`            "${part}" -> NOT FOUND`);
+            return undefined;
+          }
+        }
+        
+        console.log(`          Final resolved value: ${JSON.stringify(current)}`);
+        return current;
+      } catch (error) {
+        console.error(`          Error resolving path: ${error}`);
       }
     }
     
-    return current;
+    console.log(`          Path not found: "${path}"`);
+    return undefined;
   }
 
-  /**
-   * Evaluate condition with item context (for loops)
-   */
   /**
    * Evaluate condition with item context (for loops)
    */
   private evaluateConditionWithContext(
     condition: string,
     itemContext: any,
-    processedData: ProcessedData
+    processedData: ProcessedData,
+    rawData?: any
   ): boolean {
     // Create a temporary context that includes the item
     const newValues = new Map(processedData.values);
@@ -444,9 +566,8 @@ export class ConditionalProcessor {
       values: newValues
     };
     
-    return this.evaluateCondition(condition, contextData);
+    return this.evaluateCondition(condition, contextData, rawData);
   }
-
 
   /**
    * Replace item placeholders in content

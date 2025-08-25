@@ -37,6 +37,9 @@ export class TemplateEngine {
       // Validate input
       this.validateGenerateOptions(options);
 
+      console.log('🔧 TemplateEngine.generate() - Starting generation process...');
+      console.log('📊 Input data received:', JSON.stringify(options.data, null, 2));
+
       // Parse template (with caching)
       const templateHash = this.getTemplateHash(options.template);
       let parsedTemplate = this.cachedTemplates.get(templateHash);
@@ -57,6 +60,8 @@ export class TemplateEngine {
 
       // Process data
       console.log('Processing data...');
+      console.log('📋 Passing data to DataProcessor.processData():', JSON.stringify(options.data, null, 2));
+      
       const processedData = await this.dataProcessor.processData(options.data, parsedTemplate.templateTags);
 
       // Validate data
@@ -71,7 +76,8 @@ export class TemplateEngine {
       const result = await this.documentGenerator.generateDocument(
         parsedTemplate,
         processedData,
-        options
+        options,
+        options.data  // Pass the raw data for conditional processing
       );
 
       // Validate generated document
@@ -84,6 +90,7 @@ export class TemplateEngine {
       return result;
 
     } catch (error) {
+      console.error('❌ TemplateEngine.generate() failed:', error);
       throw new Error(`Document generation failed: ${error instanceof Error ? error.message : error}`);
     }
   }

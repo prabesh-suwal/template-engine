@@ -67,70 +67,135 @@ export class XMLUtils {
   /**
    * Extract template tags from text
    */
-  static extractTemplateTags(text: string): Array<{
-  fullTag: string;
-  path: string;
-  formatters: string[];
-  startIndex: number;
-  endIndex: number;
-}> {
-  // FIRST: Preprocess the text to merge any split template tags
-  const preprocessedText = this.preprocessXMLForTemplateTags(text);
-  
-  const tags: Array<{
+
+
+static extractTemplateTags(text: string): Array<{
     fullTag: string;
     path: string;
     formatters: string[];
     startIndex: number;
     endIndex: number;
-  }> = [];
-  
-  // IMPROVED REGEX: Better Unicode support
-  const tagRegex = /\{([^{}]+)\}/gu;  // Unicode flag for proper character support
-  let match;
-  
-  console.log('🔍 Extracting template tags from preprocessed text...');
-  
-  while ((match = tagRegex.exec(preprocessedText)) !== null) {
-    const fullTag = match[0];
-    const content = match[1].trim();
+  }> {
+    console.log(`🔍 XMLUtils.extractTemplateTags() - Input text: "${text}"`);
     
-    console.log(`  Found template tag: "${fullTag}"`);
+    const tags: Array<{
+      fullTag: string;
+      path: string;
+      formatters: string[];
+      startIndex: number;
+      endIndex: number;
+    }> = [];
     
-    // Skip malformed tags
-    if (content.includes('{') || content.includes('}') || content.includes('<w:')) {
-      console.log(`    ❌ Skipping malformed tag`);
-      continue;
+    // REGEX to find template tags: {anything}
+    const tagRegex = /\{([^{}]+)\}/g;
+    let match;
+    
+    while ((match = tagRegex.exec(text)) !== null) {
+      const fullTag = match[0];
+      const content = match[1].trim();
+      
+      console.log(`  🏷️ Found template tag: "${fullTag}" with content: "${content}"`);
+      
+      // Skip malformed tags
+      if (content.includes('{') || content.includes('}') || content.includes('<w:')) {
+        console.log(`    ❌ Skipping malformed tag`);
+        continue;
+      }
+      
+      // Split on pipe for formatters, handling quotes properly
+      const parts = this.smartSplitFormatters(content);
+      const path = parts[0].trim();
+      const formatters = parts.slice(1).map(f => f.trim()).filter(f => f.length > 0);
+      
+      console.log(`    📍 Path: "${path}"`);
+      console.log(`    🔧 Formatters: [${formatters.join(', ')}]`);
+      
+      // Validate path - must start with 'data.' or be a direct reference
+      if (!path || (!path.startsWith('data.') && !path.includes('.'))) {
+        console.log(`    ❌ Invalid path: "${path}" - must start with 'data.' or contain dots`);
+        continue;
+      }
+      
+      tags.push({
+        fullTag,
+        path,
+        formatters,
+        startIndex: match.index,
+        endIndex: match.index + fullTag.length
+      });
+      
+      console.log(`    ✅ Valid template tag extracted`);
     }
     
-    // Split on pipe, handling quotes properly
-    const parts = this.smartSplitFormatters(content);
-    const path = parts[0].trim();
-    const formatters = parts.slice(1).map(f => f.trim());
-    
-    console.log(`    📍 Path: "${path}"`);
-    console.log(`    🔧 Formatters: [${formatters.join(', ')}]`);
-    
-    // Validate path
-    if (!path || (!path.startsWith('data.') && !path.startsWith('#'))) {
-      console.log(`    ❌ Invalid path, skipping`);
-      continue;
-    }
-    
-    tags.push({
-      fullTag,
-      path,
-      formatters,
-      startIndex: match.index,
-      endIndex: match.index + fullTag.length
-    });
-    
-    console.log(`    ✅ Added template tag`);
+    console.log(`🎯 XMLUtils.extractTemplateTags() - Found ${tags.length} valid template tags`);
+    return tags;
   }
+
+
+//   static extractTemplateTags(text: string): Array<{
+//   fullTag: string;
+//   path: string;
+//   formatters: string[];
+//   startIndex: number;
+//   endIndex: number;
+// }> {
+//   // FIRST: Preprocess the text to merge any split template tags
+//   const preprocessedText = this.preprocessXMLForTemplateTags(text);
   
-  console.log(`🎯 Total extracted: ${tags.length} valid template tags`);
-  return tags;
-}
+//   const tags: Array<{
+//     fullTag: string;
+//     path: string;
+//     formatters: string[];
+//     startIndex: number;
+//     endIndex: number;
+//   }> = [];
+  
+//   // IMPROVED REGEX: Better Unicode support
+//   const tagRegex = /\{([^{}]+)\}/gu;  // Unicode flag for proper character support
+//   let match;
+  
+//   console.log('🔍 Extracting template tags from preprocessed text...');
+  
+//   while ((match = tagRegex.exec(preprocessedText)) !== null) {
+//     const fullTag = match[0];
+//     const content = match[1].trim();
+    
+//     console.log(`  Found template tag: "${fullTag}"`);
+    
+//     // Skip malformed tags
+//     if (content.includes('{') || content.includes('}') || content.includes('<w:')) {
+//       console.log(`    ❌ Skipping malformed tag`);
+//       continue;
+//     }
+    
+//     // Split on pipe, handling quotes properly
+//     const parts = this.smartSplitFormatters(content);
+//     const path = parts[0].trim();
+//     const formatters = parts.slice(1).map(f => f.trim());
+    
+//     console.log(`    📍 Path: "${path}"`);
+//     console.log(`    🔧 Formatters: [${formatters.join(', ')}]`);
+    
+//     // Validate path
+//     if (!path || (!path.startsWith('data.') && !path.startsWith('#'))) {
+//       console.log(`    ❌ Invalid path, skipping`);
+//       continue;
+//     }
+    
+//     tags.push({
+//       fullTag,
+//       path,
+//       formatters,
+//       startIndex: match.index,
+//       endIndex: match.index + fullTag.length
+//     });
+    
+//     console.log(`    ✅ Added template tag`);
+//   }
+  
+//   console.log(`🎯 Total extracted: ${tags.length} valid template tags`);
+//   return tags;
+// }
 
 private static smartSplitFormatters(content: string): string[] {
   const parts: string[] = [];

@@ -3,7 +3,22 @@
         "lender":{
             "name":"नेपाल विकास बैंक लिमिटेड",
             "licenseNumber":"NVB-002-2050",
-            "type":"NRB"
-        }
+            "type":"individual"
+        },
+        "loan": {
+      "agreementNumber": "NSB/HL/2081/001234",
+      "date": "2024-01-15T00:00:00.000Z",
+      "dateNepali": "पुष ३१, २०८०",
+      "amount": 5000000,
+      "amountInWords": "पचास लाख रुपैयाँ मात्र",
+      "interestRate": 0.115,
+      "tenure": 20,
+      "tenureMonths": 240,
+      "monthlyEmi": 56234,
+      "approvalDate": "2024-01-10T00:00:00.000Z",
+      "disbursementDate": "2024-01-20T00:00:00.000Z",
+      "emiDate": 15,
+      "copies": 4
+    }
     }
 }
