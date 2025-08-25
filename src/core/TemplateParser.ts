@@ -11,11 +11,13 @@ import { ZipUtils } from '../utils/zip';
 import { generateId } from '../utils/common';
 
 export class TemplateParser {
-  /**
-   * Parse DOCX template and extract all template tags
+/**
+   * Parse DOCX template and extract all template tags - FIXED VERSION
    */
   async parseTemplate(docxBuffer: Buffer): Promise<ParsedTemplate> {
     try {
+      console.log('🔧 Parsing DOCX template with split tag preprocessing...');
+      
       // Extract DOCX files
       const extractedFiles = await ZipUtils.extractDocx(docxBuffer);
       
@@ -24,6 +26,9 @@ export class TemplateParser {
       if (!validation.isValid) {
         throw new Error(`Invalid DOCX structure: ${validation.errors.join(', ')}`);
       }
+
+      // CRITICAL: Preprocess the main document to fix split template tags
+      await this.preprocessSplitTemplateTags(extractedFiles);
 
       // Parse XML files
       const xmlFiles = new Map();
@@ -41,8 +46,10 @@ export class TemplateParser {
       // Extract relationships
       const relationships = await this.extractRelationships(extractedFiles);
 
-      // Find all template tags
+      // Find all template tags (now they should be properly merged)
       const templateTags = await this.findAllTemplateTags(xmlFiles);
+
+      console.log(`✅ Found ${templateTags.length} template tags after preprocessing`);
 
       // Extract formatting data
       const formattingData = await this.extractFormattingData(xmlFiles, templateTags);
@@ -76,6 +83,168 @@ export class TemplateParser {
       throw new Error(`Failed to parse template: ${error instanceof Error ? error.message : error}`);
     }
   }
+
+
+
+  /**
+   * Preprocess split template tags in the extracted DOCX files
+   */
+  private async preprocessSplitTemplateTags(extractedFiles: ExtractedFiles): Promise<void> {
+    console.log('🔧 Preprocessing split template tags...');
+    
+    // Process the main document
+    const documentXML = ZipUtils.getFileAsString(extractedFiles, 'word/document.xml');
+    const fixedXML = this.fixSplitTemplateTags(documentXML);
+    
+    if (fixedXML !== documentXML) {
+      ZipUtils.setFileFromString(extractedFiles, 'word/document.xml', fixedXML);
+      console.log('✅ Updated word/document.xml with merged template tags');
+    }
+
+    // Also check headers/footers if they exist
+    const headerFooterFiles = ['word/header1.xml', 'word/footer1.xml', 'word/header2.xml', 'word/footer2.xml'];
+    
+    for (const fileName of headerFooterFiles) {
+      if (ZipUtils.fileExists(extractedFiles, fileName)) {
+        const originalXML = ZipUtils.getFileAsString(extractedFiles, fileName);
+        const fixedXML = this.fixSplitTemplateTags(originalXML);
+        
+        if (fixedXML !== originalXML) {
+          ZipUtils.setFileFromString(extractedFiles, fileName, fixedXML);
+          console.log(`✅ Updated ${fileName} with merged template tags`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Fix split template tags by merging XML elements
+   */
+  private fixSplitTemplateTags(xmlContent: string): string {
+    let fixedXML = xmlContent;
+    let fixCount = 0;
+    
+    console.log('  🔍 Searching for split template tags...');
+    
+    // Step 1: Handle the most common split pattern
+    // Pattern: {start...}</w:t></w:r><w:r><w:rPr></w:rPr><w:t>...end}
+    const simpleSplitPattern = /(\{[^}]*)<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>([^}]*\})/g;
+    
+    let previousXML = '';
+    let iterations = 0;
+    const maxIterations = 10; // Prevent infinite loops
+    
+    while (previousXML !== fixedXML && iterations < maxIterations) {
+      previousXML = fixedXML;
+      iterations++;
+      
+      fixedXML = fixedXML.replace(simpleSplitPattern, (match, start, end) => {
+        fixCount++;
+        console.log(`    Fixed split ${fixCount}: ${start.substring(0, 40)}...${end.substring(-20)}`);
+        return start + end;
+      });
+    }
+    
+    // Step 2: Handle complex multi-element splits
+    // Find template tags that still contain XML elements
+    const complexSplitPattern = /(\{[^{}]*(?:<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>[^{}]*)*\})/g;
+    
+    fixedXML = fixedXML.replace(complexSplitPattern, (match) => {
+      // Check if this match contains Word XML elements
+      if (match.includes('<w:t>') || match.includes('</w:t>')) {
+        const cleaned = match.replace(/<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>/g, '');
+        if (cleaned !== match) {
+          fixCount++;
+          console.log(`    Complex fix ${fixCount}: Removed XML from ${match.length} char template tag`);
+          return cleaned;
+        }
+      }
+      return match;
+    });
+    
+    // Step 3: Fix encoded characters
+    const originalLength = fixedXML.length;
+    fixedXML = fixedXML.replace(/&apos;/g, "'");
+    fixedXML = fixedXML.replace(/&quot;/g, '"');
+    fixedXML = fixedXML.replace(/&amp;/g, '&');
+    
+    if (fixedXML.length !== originalLength) {
+      console.log('    Fixed encoded characters (&apos; → \', &quot; → ", etc.)');
+    }
+    
+    // Step 4: Clean up any remaining XML attributes in template tags
+    const xmlAttributePattern = /(\{[^}]*)\s+xml:space="preserve"([^}]*\})/g;
+    fixedXML = fixedXML.replace(xmlAttributePattern, (match, start, end) => {
+      console.log('    Removed xml:space attribute from template tag');
+      return start + end;
+    });
+    
+    console.log(`  ✅ Preprocessing complete: ${fixCount} template tags fixed`);
+    return fixedXML;
+  }
+
+  // Keep all your existing methods unchanged...
+  // (extractRelationships, findAllTemplateTags, etc.)
+
+  /**
+   * Find all template tags in XML files - ENHANCED VERSION
+   */
+  private async findAllTemplateTags(xmlFiles: Map<string, any>): Promise<TemplateTag[]> {
+    console.log('🔍 Finding all template tags...');
+    const allTags: TemplateTag[] = [];
+
+    for (const [fileName, xmlDocument] of xmlFiles) {
+      if (fileName.includes('document.xml') || fileName.includes('header') || fileName.includes('footer')) {
+        console.log(`  Searching in ${fileName}...`);
+        
+        const tags = XMLUtils.findTemplateTagsInXML(xmlDocument.parsed, fileName);
+        
+        for (const tagData of tags) {
+          const templateTag: TemplateTag = {
+            id: generateId(),
+            fullTag: tagData.value,
+            path: this.extractDataPath(tagData.value),
+            formatters: this.extractFormatters(tagData.value),
+            xmlElement: tagData.parent,
+            formattingContext: this.createDefaultFormattingContext(),
+            position: {
+              xmlPath: tagData.path,
+              startIndex: 0,
+              endIndex: tagData.value.length,
+              parentElement: fileName
+            },
+            type: this.determineTagType(this.extractDataPath(tagData.value), this.extractFormatters(tagData.value))
+          };
+
+          allTags.push(templateTag);
+          console.log(`    ✅ Found: ${templateTag.fullTag} [${templateTag.type}] formatters: [${templateTag.formatters.join(', ')}]`);
+        }
+      }
+    }
+
+    console.log(`🎯 Total template tags found: ${allTags.length}`);
+    return allTags;
+  }
+
+  /**
+   * Extract data path from template tag
+   */
+  private extractDataPath(tagContent: string): string {
+    // Remove braces and get the path part (before first |)
+    const content = tagContent.replace(/[{}]/g, '').trim();
+    const parts = content.split('|');
+    return parts[0].trim();
+  }
+
+  /**
+   * Extract formatters from template tag
+   */
+  private extractFormatters(tagContent: string): string[] {
+    const content = tagContent.replace(/[{}]/g, '').trim();
+    const parts = content.split('|');
+    return parts.slice(1).map(f => f.trim()).filter(f => f.length > 0);
+  }
+
 
   /**
    * Extract relationships from _rels files
@@ -131,24 +300,24 @@ export class TemplateParser {
     return relationships;
   }
 
-  /**
-   * Find all template tags in XML files
-   */
-  private async findAllTemplateTags(xmlFiles: Map<string, any>): Promise<TemplateTag[]> {
-    const templateTags: TemplateTag[] = [];
+  // /**
+  //  * Find all template tags in XML files
+  //  */
+  // private async findAllTemplateTags(xmlFiles: Map<string, any>): Promise<TemplateTag[]> {
+  //   const templateTags: TemplateTag[] = [];
 
-    for (const [fileName, xmlDoc] of xmlFiles) {
-      if (fileName.includes('document.xml') || 
-          fileName.includes('header') || 
-          fileName.includes('footer')) {
+  //   for (const [fileName, xmlDoc] of xmlFiles) {
+  //     if (fileName.includes('document.xml') || 
+  //         fileName.includes('header') || 
+  //         fileName.includes('footer')) {
         
-        const tags = this.findTemplateTagsInDocument(xmlDoc.parsed, fileName);
-        templateTags.push(...tags);
-      }
-    }
+  //       const tags = this.findTemplateTagsInDocument(xmlDoc.parsed, fileName);
+  //       templateTags.push(...tags);
+  //     }
+  //   }
 
-    return templateTags;
-  }
+  //   return templateTags;
+  // }
 
   /**
    * Find template tags in a specific document

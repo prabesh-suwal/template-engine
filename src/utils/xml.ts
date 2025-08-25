@@ -68,41 +68,110 @@ export class XMLUtils {
    * Extract template tags from text
    */
   static extractTemplateTags(text: string): Array<{
+  fullTag: string;
+  path: string;
+  formatters: string[];
+  startIndex: number;
+  endIndex: number;
+}> {
+  // FIRST: Preprocess the text to merge any split template tags
+  const preprocessedText = this.preprocessXMLForTemplateTags(text);
+  
+  const tags: Array<{
     fullTag: string;
     path: string;
     formatters: string[];
     startIndex: number;
     endIndex: number;
-  }> {
-    const tags: Array<{
-      fullTag: string;
-      path: string;
-      formatters: string[];
-      startIndex: number;
-      endIndex: number;
-    }> = [];
+  }> = [];
+  
+  // IMPROVED REGEX: Better Unicode support
+  const tagRegex = /\{([^{}]+)\}/gu;  // Unicode flag for proper character support
+  let match;
+  
+  console.log('🔍 Extracting template tags from preprocessed text...');
+  
+  while ((match = tagRegex.exec(preprocessedText)) !== null) {
+    const fullTag = match[0];
+    const content = match[1].trim();
     
-    const tagRegex = /{([^}]+)}/g;
-    let match;
+    console.log(`  Found template tag: "${fullTag}"`);
     
-    while ((match = tagRegex.exec(text)) !== null) {
-      const fullTag = match[0];
-      const content = match[1];
-      const parts = content.split('|');
-      const path = parts[0].trim();
-      const formatters = parts.slice(1).map(f => f.trim());
-      
-      tags.push({
-        fullTag,
-        path,
-        formatters,
-        startIndex: match.index,
-        endIndex: match.index + fullTag.length
-      });
+    // Skip malformed tags
+    if (content.includes('{') || content.includes('}') || content.includes('<w:')) {
+      console.log(`    ❌ Skipping malformed tag`);
+      continue;
     }
     
-    return tags;
+    // Split on pipe, handling quotes properly
+    const parts = this.smartSplitFormatters(content);
+    const path = parts[0].trim();
+    const formatters = parts.slice(1).map(f => f.trim());
+    
+    console.log(`    📍 Path: "${path}"`);
+    console.log(`    🔧 Formatters: [${formatters.join(', ')}]`);
+    
+    // Validate path
+    if (!path || (!path.startsWith('data.') && !path.startsWith('#'))) {
+      console.log(`    ❌ Invalid path, skipping`);
+      continue;
+    }
+    
+    tags.push({
+      fullTag,
+      path,
+      formatters,
+      startIndex: match.index,
+      endIndex: match.index + fullTag.length
+    });
+    
+    console.log(`    ✅ Added template tag`);
   }
+  
+  console.log(`🎯 Total extracted: ${tags.length} valid template tags`);
+  return tags;
+}
+
+private static smartSplitFormatters(content: string): string[] {
+  const parts: string[] = [];
+  let currentPart = '';
+  let inQuotes = false;
+  let quoteChar = '';
+  let parenDepth = 0;
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    if (!inQuotes && (char === '"' || char === "'")) {
+      inQuotes = true;
+      quoteChar = char;
+      currentPart += char;
+    } else if (inQuotes && char === quoteChar && content[i-1] !== '\\') {
+      inQuotes = false;
+      quoteChar = '';
+      currentPart += char;
+    } else if (!inQuotes && char === '(') {
+      parenDepth++;
+      currentPart += char;
+    } else if (!inQuotes && char === ')') {
+      parenDepth--;
+      currentPart += char;
+    } else if (!inQuotes && char === '|' && parenDepth === 0) {
+      // This is a formatter separator
+      parts.push(currentPart.trim());
+      currentPart = '';
+    } else {
+      currentPart += char;
+    }
+  }
+  
+  // Add the last part
+  if (currentPart.trim()) {
+    parts.push(currentPart.trim());
+  }
+  
+  return parts;
+}
 
   /**
    * Extract formatting context from Word XML run element
@@ -335,4 +404,56 @@ export class XMLUtils {
       current[lastPart] = value;
     }
   }
+
+
+  /**
+ * Pre-process XML to merge split template tags before parsing
+ * This fixes the issue where Word splits template tags across multiple XML elements
+ */
+static preprocessXMLForTemplateTags(xmlContent: string): string {
+  console.log('🔧 Preprocessing XML to merge split template tags...');
+  
+  let processedXML = xmlContent;
+  let mergeCount = 0;
+  
+  // Pattern to match split template tags
+  // This finds patterns like: {data.something...}</w:t></w:r><w:r><w:rPr></w:rPr><w:t>...more content...}
+  const splitTagPattern = /(\{[^}]*)<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>([^}]*\})/g;
+  
+  // Keep merging until no more splits found
+  let previousXML = '';
+  while (previousXML !== processedXML) {
+    previousXML = processedXML;
+    
+    // Merge simple splits (most common case)
+    processedXML = processedXML.replace(splitTagPattern, (match, start, end) => {
+      mergeCount++;
+      console.log(`  Merged split ${mergeCount}: ${start}...${end}`);
+      return start + end;
+    });
+    
+    // Handle more complex splits with multiple </w:t></w:r><w:r><w:rPr></w:rPr><w:t> patterns
+    const complexSplitPattern = /(\{[^}]*(?:<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>[^}]*)*\})/g;
+    processedXML = processedXML.replace(complexSplitPattern, (match) => {
+      // Remove all Word XML tags from within the template tag
+      const cleaned = match.replace(/<\/w:t><\/w:r><w:r[^>]*><w:rPr[^>]*><\/w:rPr><w:t[^>]*>/g, '');
+      if (cleaned !== match) {
+        mergeCount++;
+        console.log(`  Complex merge ${mergeCount}: ${match.substring(0, 50)}... → ${cleaned.substring(0, 50)}...`);
+      }
+      return cleaned;
+    });
+  }
+  
+  // Also handle encoded quotes (&apos; → ')
+  const quoteFixes = processedXML.replace(/&apos;/g, "'");
+  if (quoteFixes !== processedXML) {
+    console.log('  Fixed encoded quotes (&apos; → \')');
+    processedXML = quoteFixes;
+  }
+  
+  console.log(`✅ Preprocessed XML: ${mergeCount} splits merged`);
+  return processedXML;
+}
+
 }

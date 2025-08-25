@@ -5,6 +5,19 @@ import { FormatterFunction } from '../types/index';
  */
 export const ConditionalFormatters: { [name: string]: FormatterFunction } = {
 
+  ifEqual: (value: any, compareValue: any, trueValue: any, falseValue: any = value): any => {
+    console.log('ifEqual called with:', { value, compareValue, trueValue, falseValue });
+    return value === compareValue ? trueValue : falseValue;
+  },
+  ifNotEqual: (value: any, compareValue: any, trueValue: any, falseValue: any = value): any => {
+    return value !== compareValue ? trueValue : falseValue;
+  },
+   ifGreater: (value: any, compareValue: any, trueValue: any, falseValue: any = value): any => {
+    const num1 = parseFloat(value);
+    const num2 = parseFloat(compareValue);
+    if (isNaN(num1) || isNaN(num2)) return value;
+    return num1 > num2 ? trueValue : falseValue;
+  },
   // Enhanced comparison formatters
   ifLess: (value: any, compareValue: any, trueValue: any, falseValue: any = value): any => {
     const num1 = parseFloat(value);

@@ -1,0 +1,58 @@
+{
+  "invoice": {
+    "number": "INV-2024-001",
+    "date": "2025-08-22T23:51:41.447Z"
+  },
+  "company": {
+    "name": "TechCorp Solutions",
+    "email": "billing@techcorp.com",
+    "phone": "+1 (555) 123-4567",
+    "address": {
+      "street": "123 Business Ave",
+      "city": "Tech City",
+      "zip": "12345"
+    }
+  },
+  "customer": {
+    "name": "Acme Corporation",
+    "email": "accounts@acme.com",
+    "phone": "+1 (555) 987-6543",
+    "address": {
+      "street": "456 Client Street",
+      "city": "Business Town",
+      "zip": "67890"
+    }
+  },
+  "items": [
+    {
+      "description": "Web Development Services",
+      "quantity": 40,
+      "price": 150,
+      "total": 6000
+    },
+    {
+      "description": "UI/UX Design",
+      "quantity": 20,
+      "price": 120,
+      "total": 2400
+    },
+    {
+      "description": "Project Management",
+      "quantity": 10,
+      "price": 100,
+      "total": 1000
+    }
+  ],
+  "totals": {
+    "subtotal": 9400,
+    "taxRate": 0.08,
+    "tax": 752,
+    "total": 10152
+  },
+  "payment": {
+    "status": "pending",
+    "dueDate": "2024-02-15",
+    "method": "bank_transfer"
+  },
+  "notes": "\n      <p><strong>Payment Terms:</strong> Net 30 days</p>\n      <p><strong>Late Fee:</strong> 1.5% per month on overdue amounts</p>\n      <ul>\n        <li>All work completed to satisfaction</li>\n        <li>Project delivered on time</li>\n        <li>Includes 30 days free support</li>\n      </ul>\n      <p><em>Thank you for choosing TechCorp Solutions!</em></p>\n    "
+}

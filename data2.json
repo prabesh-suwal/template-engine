@@ -1,262 +1,262 @@
 {
-    "data": {
-  "bank": {
-    "logo": "https://via.placeholder.com/200x80/0066cc/ffffff?text=NEPAL+BANK",
-    "nameNepali": "नेपाल स्टेट बैंक लिमिटेड",
-    "nameEnglish": "Nepal State Bank Limited",
-    "address": {
-      "nepali": "न्यू रोड, काठमाडौं, नेपाल",
-      "english": "New Road, Kathmandu, Nepal"
-    },
-    "phone": "+977-1-4123456",
-    "email": "info@nepalstatebank.com.np",
-    "website": "www.nepalstatebank.com.np",
-    "licenseNumber": "NSB/001/2078",
-    "branchManager": {
-      "name": "श्री राम कुमार श्रेष्ठ",
-      "designation": "शाखा प्रबन्धक"
-    },
-    "loanOfficer": {
-      "name": "श्रीमती सुनिता गुरुङ",
-      "designation": "ऋण अधिकारी"
-    }
-  },
-  "lender": {
-    "type": "bank",
-    "name": "नेपाल बैंक लिमिटेड",
-    "licenseNumber": "BNK-001-2045",
-    "regulatedBy": "NRB",
-    "category": "A",
-    "registrationNumber": "MF-001-2055",
-    "institutionType": "वाणिज्य बैंक",
-    "address": {
-      "district": "काठमाडौं",
-      "municipality": "काठमाडौं महानगरपालिका",
-      "ward": "१०",
-      "street": "न्यू रोड"
-    },
-    "contact": {
-      "phone": "01-4411234",
-      "email": "loans@nepalbank.com.np"
-    },
-    "signatory": {
-      "name": "रामशरण श्रेष्ठ",
-      "designation": "शाखा प्रबन्धक"
-    }
-  },
-  "loan": {
-    "agreementNumber": "NSB/HL/2081/001234",
-    "date": "2024-01-15T00:00:00.000Z",
-    "dateNepali": "पुष ३१, २०८०",
-    "amount": 5000000,
-    "amountInWords": "पचास लाख रुपैयाँ मात्र",
-    "interestRate": 0.115,
-    "tenure": 20,
-    "tenureMonths": 240,
-    "monthlyEmi": 56234,
-    "approvalDate": "2024-01-10T00:00:00.000Z",
-    "disbursementDate": "2024-01-20T00:00:00.000Z",
-    "emiDate": 15,
-    "copies": 4
-  },
-  "borrower": {
-    "primary": {
-      "nameNepali": "श्री रामेश्वर प्रसाद अधिकारी",
-      "nameEnglish": "Mr. Rameshwar Prasad Adhikari",
-      "fatherName": "श्री मोहन प्रसाद अधिकारी",
-      "citizenshipNumber": "16-02-78-12345",
-      "permanentAddress": {
-        "nepali": "वडा नं. ५, भक्तपुर नगरपालिका, भक्तपुर",
-        "english": "Ward No. 5, Bhaktapur Municipality, Bhaktapur"
-      },
-      "currentAddress": {
-        "nepali": "टोखा नगरपालिका-४, काठमाडौं",
-        "english": "Tokha Municipality-4, Kathmandu"
-      },
-      "phone": "+977-9841234567",
-      "email": "ramesh.adhikari@gmail.com",
-      "occupation": "सरकारी कर्मचारी (कक्षा अधिकृत)",
-      "monthlyIncome": 85000,
-      "panNumber": "301234567"
-    },
-    "coBorrower": {
-      "nameNepali": "श्रीमती सरस्वती अधिकारी",
-      "nameEnglish": "Mrs. Saraswati Adhikari",
-      "fatherName": "श्री हरि प्रसाद पौडेल",
-      "citizenshipNumber": "16-02-78-54321",
-      "permanentAddress": {
-        "nepali": "वडा नं. ८, मध्यपुर थिमी नगरपालिका, भक्तपुर",
-        "english": "Ward No. 8, Madhyapur Thimi Municipality, Bhaktapur"
-      },
-      "relationship": "पत्नी",
-      "phone": "+977-9851987654",
-      "occupation": "निजी कम्पनी कर्मचारी",
-      "monthlyIncome": 45000
-    }
-  },
-  "guarantors": [
-    {
-      "nameNepali": "श्री शिव प्रसाद श्रेष्ठ",
-      "nameEnglish": "Mr. Shiv Prasad Shrestha",
-      "fatherName": "श्री गंगा प्रसाद श्रेष्ठ",
-      "citizenshipNumber": "16-02-75-67890",
+  "data": {
+    "bank": {
+      "logo": "https://via.placeholder.com/200x80/0066cc/ffffff?text=NEPAL+BANK",
+      "nameNepali": "नेपाल स्टेट बैंक लिमिटेड",
+      "nameEnglish": "Nepal State Bank Limited",
       "address": {
-        "nepali": "वडा नं. ७, भक्तपुर नगरपालिका, भक्तपुर",
-        "english": "Ward No. 7, Bhaktapur Municipality, Bhaktapur"
+        "nepali": "न्यू रोड, काठमाडौं, नेपाल",
+        "english": "New Road, Kathmandu, Nepal"
       },
-      "phone": "+977-9841567890",
-      "occupation": "व्यापारी",
-      "relationship": "मित्र"
+      "phone": "+977-1-4123456",
+      "email": "info@nepalstatebank.com.np",
+      "website": "www.nepalstatebank.com.np",
+      "licenseNumber": "NSB/001/2078",
+      "branchManager": {
+        "name": "श्री राम कुमार श्रेष्ठ",
+        "designation": "शाखा प्रबन्धक"
+      },
+      "loanOfficer": {
+        "name": "श्रीमती सुनिता गुरुङ",
+        "designation": "ऋण अधिकारी"
+      }
     },
-    {
-      "nameNepali": "श्री विष्णु बहादुर तामाङ",
-      "nameEnglish": "Mr. Bishnu Bahadur Tamang",
-      "fatherName": "श्री धन बहादुर तामाङ",
-      "citizenshipNumber": "16-02-76-13579",
+    "lender": {
+      "type": "bank",
+      "name": "नेपाल बैंक लिमिटेड",
+      "licenseNumber": "BNK-001-2045",
+      "regulatedBy": "NRB",
+      "category": "A",
+      "registrationNumber": "MF-001-2055",
+      "institutionType": "वाणिज्य बैंक",
       "address": {
-        "nepali": "वडा नं. ३, गोकर्णेश्वर नगरपालिका, काठमाडौं",
-        "english": "Ward No. 3, Gokarneshwor Municipality, Kathmandu"
+        "district": "काठमाडौं",
+        "municipality": "काठमाडौं महानगरपालिका",
+        "ward": "१०",
+        "street": "न्यू रोड"
       },
-      "phone": "+977-9851246810",
-      "occupation": "सरकारी कर्मचारी",
-      "relationship": "दाजु"
-    }
-  ],
-  "property": {
-    "type": "आवासीय घर जग्गा",
-    "address": {
-      "nepali": "टोखा नगरपालिका वडा नं. ४, फुर्के, काठमाडौं",
-      "english": "Tokha Municipality Ward No. 4, Phurke, Kathmandu"
+      "contact": {
+        "phone": "01-4411234",
+        "email": "loans@nepalbank.com.np"
+      },
+      "signatory": {
+        "name": "रामशरण श्रेष्ठ",
+        "designation": "शाखा प्रबन्धक"
+      }
     },
-    "landArea": "3360",
-    "houseArea": "2100",
-    "kittaNumber": "४५६",
-    "sheetNumber": "५४३२",
-    "ownershipCertificateNumber": "काठ-टो-४-४५६-०७८/७९",
-    "estimatedValue": 8000000,
-    "registrationDate": "2078-05-15",
-    "plotNumber": "१२३-ए"
-  },
-  "emiSchedule": [
-    {
-      "installmentNumber": 1,
-      "date": "2024-02-15T00:00:00.000Z",
-      "principal": 8484,
-      "interest": 47750,
-      "totalEmi": 56234,
-      "outstandingPrincipal": 4991516
+    "loan": {
+      "agreementNumber": "NSB/HL/2081/001234",
+      "date": "2024-01-15T00:00:00.000Z",
+      "dateNepali": "पुष ३१, २०८०",
+      "amount": 5000000,
+      "amountInWords": "पचास लाख रुपैयाँ मात्र",
+      "interestRate": 0.115,
+      "tenure": 20,
+      "tenureMonths": 240,
+      "monthlyEmi": 56234,
+      "approvalDate": "2024-01-10T00:00:00.000Z",
+      "disbursementDate": "2024-01-20T00:00:00.000Z",
+      "emiDate": 15,
+      "copies": 4
     },
-    {
-      "installmentNumber": 2,
-      "date": "2024-03-15T00:00:00.000Z",
-      "principal": 8565,
-      "interest": 47669,
-      "totalEmi": 56234,
-      "outstandingPrincipal": 4982951
+    "borrower": {
+      "primary": {
+        "nameNepali": "श्री रामेश्वर प्रसाद अधिकारी",
+        "nameEnglish": "Mr. Rameshwar Prasad Adhikari",
+        "fatherName": "श्री मोहन प्रसाद अधिकारी",
+        "citizenshipNumber": "16-02-78-12345",
+        "permanentAddress": {
+          "nepali": "वडा नं. ५, भक्तपुर नगरपालिका, भक्तपुर",
+          "english": "Ward No. 5, Bhaktapur Municipality, Bhaktapur"
+        },
+        "currentAddress": {
+          "nepali": "टोखा नगरपालिका-४, काठमाडौं",
+          "english": "Tokha Municipality-4, Kathmandu"
+        },
+        "phone": "+977-9841234567",
+        "email": "ramesh.adhikari@gmail.com",
+        "occupation": "सरकारी कर्मचारी (कक्षा अधिकृत)",
+        "monthlyIncome": 85000,
+        "panNumber": "301234567"
+      },
+      "coBorrower": {
+        "nameNepali": "श्रीमती सरस्वती अधिकारी",
+        "nameEnglish": "Mrs. Saraswati Adhikari",
+        "fatherName": "श्री हरि प्रसाद पौडेल",
+        "citizenshipNumber": "16-02-78-54321",
+        "permanentAddress": {
+          "nepali": "वडा नं. ८, मध्यपुर थिमी नगरपालिका, भक्तपुर",
+          "english": "Ward No. 8, Madhyapur Thimi Municipality, Bhaktapur"
+        },
+        "relationship": "पत्नी",
+        "phone": "+977-9851987654",
+        "occupation": "निजी कम्पनी कर्मचारी",
+        "monthlyIncome": 45000
+      }
     },
-    {
-      "installmentNumber": 3,
-      "date": "2024-04-15T00:00:00.000Z",
-      "principal": 8647,
-      "interest": 47587,
-      "totalEmi": 56234,
-      "outstandingPrincipal": 4974304
-    },
-    {
-      "installmentNumber": 4,
-      "date": "2024-05-15T00:00:00.000Z",
-      "principal": 8730,
-      "interest": 47504,
-      "totalEmi": 56234,
-      "outstandingPrincipal": 4965574
-    },
-    {
-      "installmentNumber": 5,
-      "date": "2024-06-15T00:00:00.000Z",
-      "principal": 8814,
-      "interest": 47420,
-      "totalEmi": 56234,
-      "outstandingPrincipal": 4956760
-    }
-  ],
-  "fees": {
-    "processingFee": 50000,
-    "processingFeePercent": 0.01,
-    "valuationFee": 15000,
-    "legalFee": 25000,
-    "insurancePremium": 12000,
-    "lateFee": 0.02,
-    "prepaymentCharge": 0.02,
-    "penaltyRate": 0.02
-  },
-  "insurance": {
-    "propertyInsurance": 8000000,
-    "lifeInsurance": 5000000,
-    "company": "नेपाल इन्स्योरेन्स कम्पनी लिमिटेड",
-    "policyNumber": "NIC/HL/2081/001234"
-  },
-  "terms": {
-    "prepaymentNotice": 30,
-    "defaultDays": 90,
-    "gracePeriod": 15
-  },
-  "legal": {
-    "jurisdiction": "काठमाडौं जिल्ला अदालत",
-    "governingLaw": "नेपालको प्रचलित कानून",
-    "disputeResolution": "मध्यस्थता तथा सुमेल"
-  },
-  "specialConditions": [
-    {
-      "condition": "• ऋणीले बैंकमा न्यूनतम रु. ५०,००० को खाता राख्नुपर्नेछ।"
-    },
-    {
-      "condition": "• सम्पत्तिमा कुनै निर्माण कार्य गर्नु अघि बैंकको अनुमति लिनुपर्नेछ।"
-    },
-    {
-      "condition": "• वार्षिक आम्दानी प्रमाणपत्र बुझाउनुपर्नेछ।"
-    },
-    {
-      "condition": "• ऋणीको मृत्यु भएमा जीवन बीमाबाट ऋण चुक्ता हुनेछ।"
-    }
-  ],
-  "witnesses": [
-    {
-      "name": "श्री कमल खत्री",
-      "address": "टोखा-३, काठमाडौं",
-      "phone": "+977-9841111222",
-      "citizenshipNumber": "16-02-77-11111"
-    },
-    {
-      "name": "श्रीमती गीता पोखरेल",
-      "address": "भक्तपुर-९, भक्तपुर",
-      "phone": "+977-9851333444",
-      "citizenshipNumber": "16-02-78-22222"
-    }
-  ],
-  "documentation": {
-    "requiredDocuments": [
-      "नागरिकता प्रमाणपत्र",
-      "जग्गाधनी प्रमाणपत्र",
-      "घर नक्सा पास",
-      "आम्दानी प्रमाणपत्र",
-      "बैंक स्टेटमेन्ट",
-      "कर चुक्ता प्रमाणपत्र"
+    "guarantors": [
+      {
+        "nameNepali": "श्री शिव प्रसाद श्रेष्ठ",
+        "nameEnglish": "Mr. Shiv Prasad Shrestha",
+        "fatherName": "श्री गंगा प्रसाद श्रेष्ठ",
+        "citizenshipNumber": "16-02-75-67890",
+        "address": {
+          "nepali": "वडा नं. ७, भक्तपुर नगरपालिका, भक्तपुर",
+          "english": "Ward No. 7, Bhaktapur Municipality, Bhaktapur"
+        },
+        "phone": "+977-9841567890",
+        "occupation": "व्यापारी",
+        "relationship": "मित्र"
+      },
+      {
+        "nameNepali": "श्री विष्णु बहादुर तामाङ",
+        "nameEnglish": "Mr. Bishnu Bahadur Tamang",
+        "fatherName": "श्री धन बहादुर तामाङ",
+        "citizenshipNumber": "16-02-76-13579",
+        "address": {
+          "nepali": "वडा नं. ३, गोकर्णेश्वर नगरपालिका, काठमाडौं",
+          "english": "Ward No. 3, Gokarneshwor Municipality, Kathmandu"
+        },
+        "phone": "+977-9851246810",
+        "occupation": "सरकारी कर्मचारी",
+        "relationship": "दाजु"
+      }
     ],
-    "submittedDocuments": [
-      "नागरिकता प्रमाणपत्र - जमा",
-      "जग्गाधनी प्रमाणपत्र - जमा",
-      "घर नक्सा पास - जमा",
-      "आम्दानी प्रमाणपत्र - जमा",
-      "बैंक स्टेटमेन्ट (६ महिना) - जमा"
-    ]
-  },
-  "meta": {
-    "documentVersion": "२.१",
-    "templateId": "NSB-HL-TEMPLATE-2081",
-    "generatedDate": "2024-01-15T10:30:00.000Z",
-    "generatedBy": "ऋण व्यवस्थापन प्रणाली",
-    "language": "नेपाली",
-    "currency": "NPR"
+    "property": {
+      "type": "आवासीय घर जग्गा",
+      "address": {
+        "nepali": "टोखा नगरपालिका वडा नं. ४, फुर्के, काठमाडौं",
+        "english": "Tokha Municipality Ward No. 4, Phurke, Kathmandu"
+      },
+      "landArea": "3360",
+      "houseArea": "2100",
+      "kittaNumber": "४५६",
+      "sheetNumber": "५४३२",
+      "ownershipCertificateNumber": "काठ-टो-४-४५६-०७८/७९",
+      "estimatedValue": 8000000,
+      "registrationDate": "2078-05-15",
+      "plotNumber": "१२३-ए"
+    },
+    "emiSchedule": [
+      {
+        "installmentNumber": 1,
+        "date": "2024-02-15T00:00:00.000Z",
+        "principal": 8484,
+        "interest": 47750,
+        "totalEmi": 56234,
+        "outstandingPrincipal": 4991516
+      },
+      {
+        "installmentNumber": 2,
+        "date": "2024-03-15T00:00:00.000Z",
+        "principal": 8565,
+        "interest": 47669,
+        "totalEmi": 56234,
+        "outstandingPrincipal": 4982951
+      },
+      {
+        "installmentNumber": 3,
+        "date": "2024-04-15T00:00:00.000Z",
+        "principal": 8647,
+        "interest": 47587,
+        "totalEmi": 56234,
+        "outstandingPrincipal": 4974304
+      },
+      {
+        "installmentNumber": 4,
+        "date": "2024-05-15T00:00:00.000Z",
+        "principal": 8730,
+        "interest": 47504,
+        "totalEmi": 56234,
+        "outstandingPrincipal": 4965574
+      },
+      {
+        "installmentNumber": 5,
+        "date": "2024-06-15T00:00:00.000Z",
+        "principal": 8814,
+        "interest": 47420,
+        "totalEmi": 56234,
+        "outstandingPrincipal": 4956760
+      }
+    ],
+    "fees": {
+      "processingFee": 50000,
+      "processingFeePercent": 0.01,
+      "valuationFee": 15000,
+      "legalFee": 25000,
+      "insurancePremium": 12000,
+      "lateFee": 0.02,
+      "prepaymentCharge": 0.02,
+      "penaltyRate": 0.02
+    },
+    "insurance": {
+      "propertyInsurance": 8000000,
+      "lifeInsurance": 5000000,
+      "company": "नेपाल इन्स्योरेन्स कम्पनी लिमिटेड",
+      "policyNumber": "NIC/HL/2081/001234"
+    },
+    "terms": {
+      "prepaymentNotice": 30,
+      "defaultDays": 90,
+      "gracePeriod": 15
+    },
+    "legal": {
+      "jurisdiction": "काठमाडौं जिल्ला अदालत",
+      "governingLaw": "नेपालको प्रचलित कानून",
+      "disputeResolution": "मध्यस्थता तथा सुमेल"
+    },
+    "specialConditions": [
+      {
+        "condition": "• ऋणीले बैंकमा न्यूनतम रु. ५०,००० को खाता राख्नुपर्नेछ।"
+      },
+      {
+        "condition": "• सम्पत्तिमा कुनै निर्माण कार्य गर्नु अघि बैंकको अनुमति लिनुपर्नेछ।"
+      },
+      {
+        "condition": "• वार्षिक आम्दानी प्रमाणपत्र बुझाउनुपर्नेछ।"
+      },
+      {
+        "condition": "• ऋणीको मृत्यु भएमा जीवन बीमाबाट ऋण चुक्ता हुनेछ।"
+      }
+    ],
+    "witnesses": [
+      {
+        "name": "श्री कमल खत्री",
+        "address": "टोखा-३, काठमाडौं",
+        "phone": "+977-9841111222",
+        "citizenshipNumber": "16-02-77-11111"
+      },
+      {
+        "name": "श्रीमती गीता पोखरेल",
+        "address": "भक्तपुर-९, भक्तपुर",
+        "phone": "+977-9851333444",
+        "citizenshipNumber": "16-02-78-22222"
+      }
+    ],
+    "documentation": {
+      "requiredDocuments": [
+        "नागरिकता प्रमाणपत्र",
+        "जग्गाधनी प्रमाणपत्र",
+        "घर नक्सा पास",
+        "आम्दानी प्रमाणपत्र",
+        "बैंक स्टेटमेन्ट",
+        "कर चुक्ता प्रमाणपत्र"
+      ],
+      "submittedDocuments": [
+        "नागरिकता प्रमाणपत्र - जमा",
+        "जग्गाधनी प्रमाणपत्र - जमा",
+        "घर नक्सा पास - जमा",
+        "आम्दानी प्रमाणपत्र - जमा",
+        "बैंक स्टेटमेन्ट (६ महिना) - जमा"
+      ]
+    },
+    "meta": {
+      "documentVersion": "२.१",
+      "templateId": "NSB-HL-TEMPLATE-2081",
+      "generatedDate": "2024-01-15T10:30:00.000Z",
+      "generatedBy": "ऋण व्यवस्थापन प्रणाली",
+      "language": "नेपाली",
+      "currency": "NPR"
+    }
   }
-}
 }
